@@ -1,14 +1,17 @@
 # coding: utf-8
 
+from slack import WebClient
+from slack.errors import SlackApiError
 from slackbot.bot import respond_to     # @botname: で反応するデコーダ
 from slackbot.bot import listen_to      # チャネル内発言で反応するデコーダ
 from slackbot.bot import default_reply  # 該当する応答がない場合に反応するデコーダ
 import os
 import requests
 import urllib.request as req
-import sys
 import json
-from bs4 import BeautifulSoup
+import sys
+
+client = WebClient(token=os.getenv('SLACK_API_TOKEN'))
 
 # @respond_to('string')     bot宛のメッセージ
 #                           stringは正規表現が可能 「r'string'」
@@ -26,20 +29,21 @@ from bs4 import BeautifulSoup
 # message.react('icon_emoji')  発言者のメッセージにリアクション(スタンプ)する
 #                               文字列中に':'はいらない
 
+# 釣りコマンド拾うのはslackbotじゃなくてRTMClientを使えばできるっぽい
+@listen_to('釣り')
+def listen_func(message):
+    
 
-# .*でどんなメッセージでも受け付ける状態
-# respond_toで指定してもいいし、中でif message=xxx と分岐してもいい
-@respond_to('(.*)')
-def mention_func(message, args):
-    ret = get_chien_info(args)
+    # APIを使った投稿
+    client.chat_postMessage(
+        channel='#tmp_bot放牧部屋',
+        text="API使って送信テスト" 
+    )
 
-    print(ret)
-    print(type(ret))
-    message.reply(ret) # メンション
+    response = client.users_info(user='U011Q5G7685')
+    print(response)
 
-
-
-# @listen_to('リッスン')
-# def listen_func(message):
-#     message.send('誰かがリッスンと投稿したようだ')      # ただの投稿
-#     message.reply('君だね？')
+    client.chat_postMessage(
+        channel='#tmp_bot放牧部屋',
+        text=response['user']['real_name']
+    )
