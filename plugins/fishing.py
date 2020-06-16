@@ -10,6 +10,8 @@ import requests
 import urllib.request as req
 import json
 import sys
+import random
+
 
 client = WebClient(token=os.getenv('SLACK_API_TOKEN'))
 
@@ -33,17 +35,27 @@ client = WebClient(token=os.getenv('SLACK_API_TOKEN'))
 @listen_to('釣り')
 def listen_func(message):
     
+    num = random.randint(0,2)
 
-    # APIを使った投稿
-    client.chat_postMessage(
-        channel='#tmp_bot放牧部屋',
-        text="API使って送信テスト" 
-    )
+    if num == 0:
+        fish = "アジ"
+    elif num == 1:
+        fish = "ヒラメ"
+    elif num == 2:
+        fish = "平田"
 
-    response = client.users_info(user='U011Q5G7685')
-    print(response)
+    message.send(f"{fish}が釣れたぞ")
 
-    client.chat_postMessage(
-        channel='#tmp_bot放牧部屋',
-        text=response['user']['real_name']
-    )
+    # # APIを使った投稿
+    # client.chat_postMessage(
+    #     channel='#tmp_bot放牧部屋',
+    #     text="API使って送信テスト" 
+    # )
+
+    # response = client.users_info(user='U011Q5G7685')
+    # print(response)
+
+    # client.chat_postMessage(
+    #     channel='#tmp_bot放牧部屋',
+    #     text=response['user']['real_name']
+    # )
