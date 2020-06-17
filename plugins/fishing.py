@@ -12,8 +12,56 @@ import json
 import sys
 import random
 
-
 client = WebClient(token=os.getenv('SLACK_API_TOKEN'))
+
+block_kit = {
+            "blocks": [
+            {
+                "type": "divider"
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "plain_text",
+                    "text": "This is a plain text section block.",
+                    "emoji": 'true'
+                }
+            },
+            {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "plain_text",
+                        "text": "*this is plain_text text*",
+                        "emoji": 'true'
+                    },
+                    {
+                        "type": "plain_text",
+                        "text": "*this is plain_text text*",
+                        "emoji": 'true'
+                    },
+                    {
+                        "type": "plain_text",
+                        "text": "*this is plain_text text*",
+                        "emoji": 'true'
+                    },
+                    {
+                        "type": "plain_text",
+                        "text": "*this is plain_text text*",
+                        "emoji": 'true'
+                    },
+                    {
+                        "type": "plain_text",
+                        "text": "*this is plain_text text*",
+                        "emoji": 'true'
+                    }
+                ]
+            },
+            {
+                "type": "divider"
+            }
+        ]
+    }
 
 # @respond_to('string')     bot宛のメッセージ
 #                           stringは正規表現が可能 「r'string'」
@@ -32,24 +80,36 @@ client = WebClient(token=os.getenv('SLACK_API_TOKEN'))
 #                               文字列中に':'はいらない
 
 # 釣りコマンド拾うのはslackbotじゃなくてRTMClientを使えばできるっぽい
-@listen_to('釣り')
+
+l = ["アジ", "ヒラメ", "ハマチ", "ジンベエザメ", "平田"]
+w = [50, 20, 20, 9.98779296875, 0.001220703125] #重み付け
+
+@listen_to('^釣り$')
 def listen_func(message):
-    
-    num = random.randint(0,2)
 
-    if num == 0:
-        fish = "アジ"
-    elif num == 1:
-        fish = "ヒラメ"
-    elif num == 2:
-        fish = "平田"
+    ret = random.choices(l, weights=w)
 
-    message.send(f"{fish}が釣れたぞ")
+    message.send(f"{ret}が釣れたぞ")
+
+@listen_to('^底びき網漁$')
+def listen_func(message):
+
+    # json_dict = json.loads(block_kit)
+    # print('json_dict:{}'.format(json_dict['blocks']['text']['type']))
+
+    fish_count = {'アジ': 0, 'ヒラメ': 0, 'ハマチ': 0, 'ジンベエザメ': 0, '平田': 0}
+    for num in range(10000):
+        ret = random.choices(l, weights=w)
+        fish_count[ret[0]] = fish_count[ret[0]] + 1
+
+    for k, v in fish_count.items():
+        message.send(f"{k}は{v}匹\n")
+
 
     # # APIを使った投稿
     # client.chat_postMessage(
     #     channel='#tmp_bot放牧部屋',
-    #     text="API使って送信テスト" 
+    #     text="API使って送信テスト"
     # )
 
     # response = client.users_info(user='U011Q5G7685')
