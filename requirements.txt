@@ -1,0 +1,3 @@
+slackbot
+beautifulsoup4
+lxml
