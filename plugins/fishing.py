@@ -11,6 +11,7 @@ import urllib.request as req
 import json
 import sys
 import random
+import sqlite3
 
 client = WebClient(token=os.getenv('SLACK_API_TOKEN'))
 
@@ -81,19 +82,34 @@ block_kit = {
 
 # 釣りコマンド拾うのはslackbotじゃなくてRTMClientを使えばできるっぽい
 
-l = ["アジ", "ヒラメ", "ハマチ", "ジンベエザメ", "平田"]
-w = [50, 20, 20, 9.98779296875, 0.001220703125] #重み付け
-
 @listen_to('^釣り$')
-def listen_func(message):
+def fishing(message):
+
+    dbname = './db/fishing_test.db'
+    resultList = selectFishInfoAll(dbname)
+
+    # 名前＋絵文字とコメントリスト取得
+    for row in resultList:
+        fish = row.get('fish_name') + row.get('fish_icon') + ':' + row.get('comment') 
+        l.append(fish)
+
+    # レア度リスト取得
+    for row in resultList:
+        rarity = row.get('rarity')
+        if is_int(rarity):
+            w.append(rarity)
+        else:
+            w.append(10)
 
     ret = random.choices(l, weights=w)
 
-    message.send(f"{ret}が釣れたぞ")
+    print(ret)
+    message.send(str(ret))
+
 
 @listen_to('^底びき網漁$')
-def listen_func(message):
-
+def fishingAll(message):
+ 
     # json_dict = json.loads(block_kit)
     # print('json_dict:{}'.format(json_dict['blocks']['text']['type']))
 
@@ -104,7 +120,6 @@ def listen_func(message):
 
     for k, v in fish_count.items():
         message.send(f"{k}は{v}匹\n")
-
 
     # # APIを使った投稿
     # client.chat_postMessage(
@@ -119,3 +134,34 @@ def listen_func(message):
     #     channel='#tmp_bot放牧部屋',
     #     text=response['user']['real_name']
     # )
+
+def selectFishInfoAll(dbName):
+    conn = sqlite3.connect(dbName)
+    # row_factoryの変更(dict_factoryに変更)
+    conn.row_factory = dict_factory
+
+    c = conn.cursor()
+
+    sql = "select * from fish_info"
+    c.execute(sql)
+
+    resultList = c.fetchall()
+
+    c.close()
+    conn.close()
+
+    return resultList
+
+# dict_factoryの定義
+def dict_factory(cursor, row):
+   d = {}
+   for idx, col in enumerate(cursor.description):
+       d[col[0]] = row[idx]
+   return d
+
+def is_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
