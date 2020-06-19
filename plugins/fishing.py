@@ -87,6 +87,8 @@ def fishing(message):
 
     dbname = './db/fishing_test.db'
     resultList = selectFishInfoAll(dbname)
+    l = []
+    w = []
 
     # 名前＋絵文字とコメントリスト取得
     for row in resultList:
