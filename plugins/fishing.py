@@ -13,7 +13,8 @@ import sys
 import random
 import sqlite3
 
-client = WebClient(token=os.getenv('SLACK_API_TOKEN'))
+client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
+dbname = './db/fishing_test.db'
 
 block_kit = {
             "blocks": [
@@ -80,42 +81,50 @@ block_kit = {
 # message.react('icon_emoji')  発言者のメッセージにリアクション(スタンプ)する
 #                               文字列中に':'はいらない
 
-# 釣りコマンド拾うのはslackbotじゃなくてRTMClientを使えばできるっぽい
-
 @listen_to('^釣り$')
 def fishing(message):
 
-    dbname = './db/fishing_test.db'
-    resultList = selectFishInfoAll(dbname)
+    l_fishinfo = selectFishInfoAll(dbname)
+    l_weights = selectWeigths(dbname)
     l = []
     w = []
 
-    # 名前＋絵文字とコメントリスト取得
-    for row in resultList:
-        fish = row.get('fish_name') + row.get('fish_icon') + ':' + row.get('comment') 
-        l.append(fish)
+    # fish_idリスト作成
+    l_fishid = [d.get('fish_id') for d in l_fishinfo]
 
     # レア度リスト取得
-    for row in resultList:
+    for row in l_fishinfo:
         rarity = row.get('rarity')
-        if is_int(rarity):
-            w.append(rarity)
-        else:
-            w.append(10)
+        # レア度を％に変換する
+        for row_w in l_weights:
+            if row_w.get('rarity') == rarity:
+                w.append(row_w.get('weights'))
 
-    ret = random.choices(l, weights=w)
+    ret = random.choices(l_fishid, weights=w)
+    ret_fishid = ret[0]
 
-    print(ret)
-    message.send(str(ret))
+    # fish_idから行を取得
+    fish = ""
+    for row in l_fishinfo:
+        if row.get('fish_id') == ret_fishid:
+            fish = row.get('fish_name') + row.get('fish_icon') + '(レア度' + str(row.get('rarity')) + '):' + row.get('comment') 
 
+    message.send(str(fish))
+
+    # 釣果を検索
+    # 検索条件
+    user_id = message.body['user']
+    # 既に釣ってたら最小最長cm、釣った数、ポイントを更新
+    # まだ釣ってなかったら登録
 
 @listen_to('^底びき網漁$')
 def fishingAll(message):
  
-    # json_dict = json.loads(block_kit)
-    # print('json_dict:{}'.format(json_dict['blocks']['text']['type']))
+    resultList = selectFishInfoAll(dbname)
+    weights = selectWeigths(dbname)
+    l = []
+    w = []
 
-    fish_count = {'アジ': 0, 'ヒラメ': 0, 'ハマチ': 0, 'ジンベエザメ': 0, '平田': 0}
     for num in range(10000):
         ret = random.choices(l, weights=w)
         fish_count[ret[0]] = fish_count[ret[0]] + 1
@@ -154,6 +163,53 @@ def selectFishInfoAll(dbName):
 
     return resultList
 
+def selectWeigths(dbName):
+    conn = sqlite3.connect(dbName)
+    # row_factoryの変更(dict_factoryに変更)
+    conn.row_factory = dict_factory
+
+    c = conn.cursor()
+
+    sql = "select * from weights"
+    c.execute(sql)
+
+    resultList = c.fetchall()
+
+    c.close()
+    conn.close()
+
+    return resultList
+
+def selectCatch(dbName, fishInfo, userInfo):
+    conn = sqlite3.connect(dbName)
+    # row_factoryの変更(dict_factoryに変更)
+    conn.row_factory = dict_factory
+
+    c = conn.cursor()
+
+    sql = "select * from fish_catch where fish_id =? and angler_id=?"
+    c.execute(sql, [fishInfo.get('fish_id'), userInfo('user')])
+
+    resultList = c.fetchall()
+
+    c.close()
+    conn.close()
+
+    return resultList
+
+def insertFishCatch(dbName, fishInfo, userInfo):
+    conn = sqlite3.connect(dbName)
+    # row_factoryの変更(dict_factoryに変更)
+    c = conn.cursor()
+
+    sql = "INSERT INTO fish_catch (fish_id, angler_id, min_length, max_length, count, point) VALUES (?, ?, ?, ?, ?, ?);"
+    c.execute(sql)
+
+    resultList = c.fetchall()
+
+    c.close()
+    conn.close()
+
 # dict_factoryの定義
 def dict_factory(cursor, row):
    d = {}
@@ -167,3 +223,5 @@ def is_int(s):
         return True
     except ValueError:
         return False
+
+# fishing("")
