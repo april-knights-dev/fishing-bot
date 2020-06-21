@@ -92,8 +92,8 @@ def test_fishing(message):
     # fish_idリスト作成
     l_fishid = [d.get('fish_id') for d in l_fishinfo]
 
-    for ret_fishid in l_fishid:
-        resultMessage = fishing(ret_fishid, l_fishinfo, user_id = message.body['user'])
+    for fishid in l_fishid:
+        resultMessage = fishing(fishid, l_fishinfo, user_id = message.body['user'])
 
     message.send('全種類登録完了')
 
@@ -121,7 +121,7 @@ def listen_fishing(message):
 
     resultMessage = fishing(ret_fishid, l_fishinfo, user_id = message.body['user'])
 
-    message.send(resultMessage)
+    message.reply(resultMessage)
 
 def fishing(ret_fishid, l_fishinfo, user_id):
 
@@ -197,7 +197,7 @@ def fishingAll(message):
         ret_fishid = ret[0]
         resultMessage = fishing(ret_fishid, l_fishinfo, user_id = message.body['user'])
 
-    message.send('10000匹釣ったで')
+    message.send('100匹釣ったで')
     # # APIを使った投稿
     # client.chat_postMessage(
     #     channel='#tmp_bot放牧部屋',
@@ -284,6 +284,7 @@ def insertFishCatch(dbName, fishInfo, userId, length):
         c.execute(sql, 
             [fishInfo.get('fish_id'), userId, length, length, 1, point])
         c.close()
+
     except sqlite3.IntegrityError as e:
         print(e)
         
