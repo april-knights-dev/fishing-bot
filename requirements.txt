@@ -1,3 +1,6 @@
 slackbot
-beautifulsoup4
-lxml
+slackclient
+requests
+json
+random
+psycopg2

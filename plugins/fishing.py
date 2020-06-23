@@ -5,13 +5,14 @@ from slack.errors import SlackApiError
 from slackbot.bot import respond_to     # @botname: で反応するデコーダ
 from slackbot.bot import listen_to      # チャネル内発言で反応するデコーダ
 from slackbot.bot import default_reply  # 該当する応答がない場合に反応するデコーダ
+from psycopg2.extras import DictCursor  # 辞書形式で取得するやつ
 import os
 import requests
 import urllib.request as req
 import json
 import sys
 import random
-import sqlite3
+import psycopg2
 
 client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 dbname = './db/fishing_test.db'
@@ -84,8 +85,8 @@ block_kit = {
 @listen_to('^釣りテスト$')
 def test_fishing(message):
 
-    l_fishinfo = selectFishInfoAll(dbname)
-    l_weights = selectWeigths(dbname)
+    l_fishinfo = selectFishInfoAll()
+    l_weights = selectWeigths()
     l = []
     w = []
 
@@ -100,8 +101,8 @@ def test_fishing(message):
 @listen_to('^釣り$')
 def listen_fishing(message):
 
-    l_fishinfo = selectFishInfoAll(dbname)
-    l_weights = selectWeigths(dbname)
+    l_fishinfo = selectFishInfoAll()
+    l_weights = selectWeigths()
     l = []
     w = []
 
@@ -143,11 +144,11 @@ def fishing(ret_fishid, l_fishinfo, user_id):
 
     # 釣果を検索
     # 検索条件    
-    l_catch_list = selectCatch(dbname, fishInfo, user_id)
+    l_catch_list = selectCatch(fishInfo, user_id)
 
     if len(l_catch_list)==0:
         # まだ釣ってなかったら登録
-        insertFishCatch(dbname, fishInfo, user_id, flen)
+        insertFishCatch(fishInfo, user_id, flen)
     else:
         # 既に釣ってたら最小最長cm、釣った数、ポイントを更新
         dict_catch = l_catch_list[0]
@@ -170,7 +171,7 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         else:
             min_length = None
             min_length = None
-        updateFishCatch(dbname, fishInfo, user_id, min_length, max_length, before_count, before_point)
+        updateFishCatch(fishInfo, user_id, min_length, max_length, before_count, before_point)
 
     return str(result)
 
@@ -212,63 +213,36 @@ def fishingAll(message):
     #     text=response['user']['real_name']
     # )
 
-def selectFishInfoAll(dbName):
-    conn = sqlite3.connect(dbName)
-    # row_factoryの変更(dict_factoryに変更)
-    conn.row_factory = dict_factory
+def selectFishInfoAll():
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("select * from fish_info")
+            dictList = cur.fetchall()
 
-    c = conn.cursor()
+    return dictList
 
-    sql = "select * from fish_info"
-    c.execute(sql)
+def selectWeigths():
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("select * from weights")
+            dictList = cur.fetchall()
+            
+    return dictList
 
-    resultList = c.fetchall()
+def selectCatch(fishInfo, userId):
 
-    c.close()
-    conn.close()
+    sql = "select * from fish_catch where fish_id =%s and angler_id=%s"
 
-    return resultList
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute(sql, [fishInfo.get('fish_id'), userId])
+            dictList = cur.fetchall()
+            
+    return dictList
 
-def selectWeigths(dbName):
-    conn = sqlite3.connect(dbName)
-    # row_factoryの変更(dict_factoryに変更)
-    conn.row_factory = dict_factory
-
-    c = conn.cursor()
-
-    sql = "select * from weights"
-    c.execute(sql)
-
-    resultList = c.fetchall()
-
-    c.close()
-    conn.close()
-
-    return resultList
-
-def selectCatch(dbName, fishInfo, userId):
-    conn = sqlite3.connect(dbName)
-    # row_factoryの変更(dict_factoryに変更)
-    conn.row_factory = dict_factory
-
-    c = conn.cursor()
-
-    sql = "select * from fish_catch where fish_id =? and angler_id=?"
-    c.execute(sql, [fishInfo.get('fish_id'), userId])
-
-    resultList = c.fetchall()
-
-    c.close()
-    conn.close()
-
-    return resultList
-
-def insertFishCatch(dbName, fishInfo, userId, length):
-    conn = sqlite3.connect(dbName)
-    c = conn.cursor()
+def insertFishCatch(fishInfo, userId, length):
     try:
-
-        sql = "INSERT INTO fish_catch (fish_id, angler_id, min_length, max_length, count, point) VALUES (?, ?, ?, ?, ?, ?)"
+        sql = "INSERT INTO fish_catch (fish_id, angler_id, min_length, max_length, count, point) VALUES (%s, %s, %s, %s, %s, %s)"
         # 1匹につきレア度に応じて以下のポイントを付与
         # 1 ** 5 = 1
         # 2 ** 5 = 32
@@ -281,23 +255,17 @@ def insertFishCatch(dbName, fishInfo, userId, length):
         else:
             point = rarity * 2
 
-        c.execute(sql, 
-            [fishInfo.get('fish_id'), userId, length, length, 1, point])
-        c.close()
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(sql, [fishInfo.get('fish_id'), userId, length, length, 1, point])
+                conn.commit()
 
-    except sqlite3.IntegrityError as e:
+    except psycopg2.Error as e: 
         print(e)
-        
-    conn.commit()
-    conn.close()
 
-def updateFishCatch(dbName, fishInfo, userId, min_length, max_length, before_count, before_point):
-    conn = sqlite3.connect(dbName)
-    # row_factoryの変更(dict_factoryに変更)
-    c = conn.cursor()
+def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, before_point):
     try:
-
-        sql = "UPDATE fish_catch SET min_length=?, max_length=?, count=?, point=? where fish_id=? and angler_id=?"
+        sql = "UPDATE fish_catch SET min_length=%s, max_length=%s, count=%s, point=%s where fish_id=%s and angler_id=%s"
         count = before_count + 1
         # 1匹につきレア度に応じて以下のポイントを付与
         # 1 ** 5 = 1
@@ -311,15 +279,14 @@ def updateFishCatch(dbName, fishInfo, userId, min_length, max_length, before_cou
         else:
             point = count * (fishInfo.get('rarity') * 2)
 
-        c.execute(sql, 
-            [min_length, max_length, count, point, fishInfo.get('fish_id'), userId])
-        c.close()
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(sql, 
+                    [min_length, max_length, count, point, fishInfo.get('fish_id'), userId])
+                conn.commit()
 
-    except sqlite3.IntegrityError as e:
+    except psycopg2.Error as e:
         print(e)
-        
-    conn.commit()
-    conn.close()
 
 # dict_factoryの定義
 def dict_factory(cursor, row):
@@ -334,3 +301,7 @@ def is_int(s):
         return True
     except ValueError:
         return False
+
+def get_connection():
+    dsn = os.getenv('DATABASE_URL')
+    return psycopg2.connect(dsn)
