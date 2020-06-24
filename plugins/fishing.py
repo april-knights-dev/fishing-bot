@@ -15,56 +15,6 @@ import random
 import psycopg2
 
 client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
-dbname = './db/fishing_test.db'
-
-block_kit = {
-            "blocks": [
-            {
-                "type": "divider"
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "plain_text",
-                    "text": "This is a plain text section block.",
-                    "emoji": 'true'
-                }
-            },
-            {
-                "type": "section",
-                "fields": [
-                    {
-                        "type": "plain_text",
-                        "text": "*this is plain_text text*",
-                        "emoji": 'true'
-                    },
-                    {
-                        "type": "plain_text",
-                        "text": "*this is plain_text text*",
-                        "emoji": 'true'
-                    },
-                    {
-                        "type": "plain_text",
-                        "text": "*this is plain_text text*",
-                        "emoji": 'true'
-                    },
-                    {
-                        "type": "plain_text",
-                        "text": "*this is plain_text text*",
-                        "emoji": 'true'
-                    },
-                    {
-                        "type": "plain_text",
-                        "text": "*this is plain_text text*",
-                        "emoji": 'true'
-                    }
-                ]
-            },
-            {
-                "type": "divider"
-            }
-        ]
-    }
 
 # @respond_to('string')     bot宛のメッセージ
 #                           stringは正規表現が可能 「r'string'」
@@ -82,6 +32,7 @@ block_kit = {
 # message.react('icon_emoji')  発言者のメッセージにリアクション(スタンプ)する
 #                               文字列中に':'はいらない
 
+
 @listen_to('^釣りテスト$')
 def test_fishing(message):
 
@@ -94,9 +45,11 @@ def test_fishing(message):
     l_fishid = [d.get('fish_id') for d in l_fishinfo]
 
     for fishid in l_fishid:
-        resultMessage = fishing(fishid, l_fishinfo, user_id = message.body['user'])
+        resultMessage = fishing(
+            fishid, l_fishinfo, user_id=message.body['user'])
 
     message.send('全種類登録完了')
+
 
 @listen_to('^釣り$')
 def listen_fishing(message):
@@ -120,9 +73,52 @@ def listen_fishing(message):
     ret = random.choices(l_fishid, weights=w)
     ret_fishid = ret[0]
 
-    resultMessage = fishing(ret_fishid, l_fishinfo, user_id = message.body['user'])
+    result_dict = fishing(ret_fishid, l_fishinfo,
+                          user_id=message.body['user'])
 
-    message.reply(resultMessage)
+    section_text = ""
+    if "length" in result_dict:
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{result_dict['length']}cm \nコメント：{result_dict['comment']}"
+    else:
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
+
+    angler_name = ""
+    user_profile = client.users_profile_get(
+        user=message.body['user'])['profile']
+    if user_profile["display_name"] != "":
+        angler_name = user_profile['display_name']
+    else:
+        angler_name = user_profile['real_name']
+
+    client.chat_postMessage(
+        channel=message.body['channel'],
+        username='釣堀',
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                        "type": "mrkdwn",
+                        "text": angler_name + "が釣ったのは…"
+                }
+            },
+            {
+                "type": "divider"
+            },
+            {
+                "type": "section",
+                "text": {
+                        "type": "mrkdwn",
+                        "text": section_text
+                },
+                "accessory": {
+                    "type": "image",
+                    "image_url": f"{result_dict['fish_icon']}",
+                    "alt_text": "Twitter, Inc."
+                }
+            }
+        ]
+    )
+
 
 def fishing(ret_fishid, l_fishinfo, user_id):
 
@@ -132,21 +128,30 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         if row.get('fish_id') == ret_fishid:
             fishInfo = row
 
+    result_dict = {}
+    result_dict['fish_name'] = fishInfo.get('fish_name')
+    result_dict['fish_icon'] = fishInfo.get('fish_icon')
+    result_dict['comment'] = fishInfo.get('comment')
+
     # 体長を範囲内でランダム生成
     flen = 0
     if fishInfo.get('min_length') != None:
-        flen = random.randint(fishInfo.get('min_length'),  fishInfo.get('max_length'))
-        result = fishInfo.get('fish_name') + fishInfo.get('fish_icon') + \
-                '(レア度' + str(fishInfo.get('rarity')) + ', 体長 ' + str(flen) + 'cm):' + fishInfo.get('comment') 
-    else:
-        result = fishInfo.get('fish_name') + fishInfo.get('fish_icon') + \
-                '(レア度' + str(fishInfo.get('rarity')) + '):' + fishInfo.get('comment') 
+        flen = random.randint(fishInfo.get('min_length'),
+                              fishInfo.get('max_length'))
+        result_dict['length'] = flen
+
+    # レア度に応じて★
+    star = ""
+    for num in range(fishInfo.get('rarity')):
+        star += "⭐"
+
+    result_dict['star'] = star
 
     # 釣果を検索
-    # 検索条件    
+    # 検索条件
     l_catch_list = selectCatch(fishInfo, user_id)
 
-    if len(l_catch_list)==0:
+    if len(l_catch_list) == 0:
         # まだ釣ってなかったら登録
         insertFishCatch(fishInfo, user_id, flen)
     else:
@@ -171,21 +176,26 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         else:
             min_length = None
             min_length = None
-        updateFishCatch(fishInfo, user_id, min_length, max_length, before_count, before_point)
+        updateFishCatch(fishInfo, user_id, min_length,
+                        max_length, before_count, before_point)
 
-    return str(result)
+    catch = selectCatch(fishInfo, user_id)
+    result_dict['point'] = catch[0].get('point')
+
+    return result_dict
+
 
 @listen_to('^底びき網漁$')
 def fishingAll(message):
- 
-    l_fishinfo = selectFishInfoAll(dbname)
-    l_weights = selectWeigths(dbname)
+
+    l_fishinfo = selectFishInfoAll()
+    l_weights = selectWeigths()
     l = []
     w = []
 
     # fish_idリスト作成
     l_fishid = [d.get('fish_id') for d in l_fishinfo]
-        # レア度リスト取得
+    # レア度リスト取得
     for row in l_fishinfo:
         rarity = row.get('rarity')
         # レア度を％に変換する
@@ -196,22 +206,11 @@ def fishingAll(message):
     for num in range(100):
         ret = random.choices(l_fishid, weights=w)
         ret_fishid = ret[0]
-        resultMessage = fishing(ret_fishid, l_fishinfo, user_id = message.body['user'])
+        resultMessage = fishing(ret_fishid, l_fishinfo,
+                                user_id=message.body['user'])
 
     message.send('100匹釣ったで')
-    # # APIを使った投稿
-    # client.chat_postMessage(
-    #     channel='#tmp_bot放牧部屋',
-    #     text="API使って送信テスト"
-    # )
 
-    # response = client.users_info(user='U011Q5G7685')
-    # print(response)
-
-    # client.chat_postMessage(
-    #     channel='#tmp_bot放牧部屋',
-    #     text=response['user']['real_name']
-    # )
 
 def selectFishInfoAll():
     with get_connection() as conn:
@@ -221,13 +220,15 @@ def selectFishInfoAll():
 
     return dictList
 
+
 def selectWeigths():
     with get_connection() as conn:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("select * from weights")
             dictList = cur.fetchall()
-            
+
     return dictList
+
 
 def selectCatch(fishInfo, userId):
 
@@ -237,8 +238,9 @@ def selectCatch(fishInfo, userId):
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute(sql, [fishInfo.get('fish_id'), userId])
             dictList = cur.fetchall()
-            
+
     return dictList
+
 
 def insertFishCatch(fishInfo, userId, length):
     try:
@@ -249,7 +251,7 @@ def insertFishCatch(fishInfo, userId, length):
         # 3 ** 5 = 243
         # 4 ** 5 = 1024
         # 5 ** 5 = 3125
-        rarity = fishInfo.get('rarity') 
+        rarity = fishInfo.get('rarity')
         if rarity <= 5:
             point = rarity ** 5
         else:
@@ -257,11 +259,13 @@ def insertFishCatch(fishInfo, userId, length):
 
         with get_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
-                cur.execute(sql, [fishInfo.get('fish_id'), userId, length, length, 1, point])
+                cur.execute(sql, [fishInfo.get('fish_id'),
+                                  userId, length, length, 1, point])
                 conn.commit()
 
-    except psycopg2.Error as e: 
+    except psycopg2.Error as e:
         print(e)
+
 
 def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, before_point):
     try:
@@ -273,7 +277,7 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
         # 3 ** 5 = 243
         # 4 ** 5 = 1024
         # 5 ** 5 = 3125
-        rarity = fishInfo.get('rarity') 
+        rarity = fishInfo.get('rarity')
         if rarity <= 5:
             point = count * (fishInfo.get('rarity') ** 5)
         else:
@@ -281,19 +285,22 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
 
         with get_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
-                cur.execute(sql, 
-                    [min_length, max_length, count, point, fishInfo.get('fish_id'), userId])
+                cur.execute(sql,
+                            [min_length, max_length, count, point, fishInfo.get('fish_id'), userId])
                 conn.commit()
 
     except psycopg2.Error as e:
         print(e)
 
 # dict_factoryの定義
+
+
 def dict_factory(cursor, row):
-   d = {}
-   for idx, col in enumerate(cursor.description):
-       d[col[0]] = row[idx]
-   return d
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
 
 def is_int(s):
     try:
@@ -301,6 +308,7 @@ def is_int(s):
         return True
     except ValueError:
         return False
+
 
 def get_connection():
     dsn = os.getenv('DATABASE_URL')
