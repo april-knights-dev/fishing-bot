@@ -115,6 +115,9 @@ def listen_fishing(message):
                     "image_url": f"{result_dict['fish_icon']}",
                     "alt_text": "Twitter, Inc."
                 }
+            },
+            {
+                "type": "divider"
             }
         ]
     )
@@ -180,7 +183,7 @@ def fishing(ret_fishid, l_fishinfo, user_id):
                         max_length, before_count, before_point)
 
     catch = selectCatch(fishInfo, user_id)
-    result_dict['point'] = catch[0].get('point')
+    result_dict['point'] = int(catch[0].get('point')/catch[0].get('count'))
 
     return result_dict
 
