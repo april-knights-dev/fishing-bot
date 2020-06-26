@@ -182,8 +182,7 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         updateFishCatch(fishInfo, user_id, min_length,
                         max_length, before_count, before_point)
 
-    catch = selectCatch(fishInfo, user_id)
-    result_dict['point'] = int(catch[0].get('point')/catch[0].get('count'))
+    result_dict['point'] = calc_point(fishInfo.get('rarity'))
 
     return result_dict
 
@@ -255,11 +254,7 @@ def insertFishCatch(fishInfo, userId, length):
         # 4 ** 5 = 1024
         # 5 ** 5 = 3125
         rarity = fishInfo.get('rarity')
-        if rarity <= 5:
-            point = rarity ** 5
-        else:
-            point = rarity * 2
-
+        point = calc_point(rarity)
         with get_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
                 cur.execute(sql, [fishInfo.get('fish_id'),
@@ -316,3 +311,11 @@ def is_int(s):
 def get_connection():
     dsn = os.getenv('DATABASE_URL')
     return psycopg2.connect(dsn)
+
+
+def calc_point(rarity):
+    if rarity <= 5:
+        point = rarity ** 5
+    else:
+        point = rarity * 2
+    return point

@@ -23,7 +23,6 @@ create table fish_catch(
     CONSTRAINT fish_catch_pk PRIMARY KEY(fish_id, angler_id)
 );
 
-drop table angler_ranking;
 
 create table angler_ranking(
     angler_id VARCHAR (20),
@@ -64,55 +63,33 @@ create trigger update_tri before
 update
     on weights for each row execute procedure set_update_time();
 
-DROP function angler_ranking_trigger_function CASCADE;
 
 -- 集計トリガー作成
 DROP function angler_ranking_trigger_function CASCADE;
 CREATE
 OR  REPLACE FUNCTION angler_ranking_trigger_function(
-    ) RETURNS TRIGGER AS $BODY$ BEGIN
-    -- TG_TABLE_NAME :name of the table that caused the trigger invocation
-    IF(
-        TG_TABLE_NAME = 'fish_catch'
-    ) THEN
-    --TG_OP : operation the trigger was fired
-    IF(TG_OP = 'INSERT') OR (TG_OP = 'UPDATE') THEN
-        INSERT INTO angler_ranking(angler_id, total_point)
-        (
-            SELECT
-                angler_id,
-                SUM(point)
-            FROM
-                fish_catch
-            GROUP BY
-                angler_id
-        )
-        ON  CONFLICT
-        ON  CONSTRAINT upsert_pk DO
-            UPDATE
-            SET
-                total_point = (
-                    SELECT
-                        SUM(point)
-                    FROM
-                        fish_catch
-                    WHERE
-                        angler_id = OLD.angler_id
-                    GROUP BY
-                        angler_id
-                ),
-                updated_at = NOW()
-            WHERE
-                angler_ranking.angler_id = OLD.angler_id
-        ;
-RETURN NEW;
-END IF;
-RETURN NULL;
-END IF;
-END;
+    ) RETURNS TRIGGER AS $BODY$
+    BEGIN
+        -- TG_TABLE_NAME :name of the table that caused the trigger invocation
+        IF(TG_TABLE_NAME = 'fish_catch') THEN
+            --TG_OP : operation the trigger was fired
+            DELETE FROM angler_ranking;
+            INSERT INTO angler_ranking(angler_id, total_point)
+            (
+                SELECT
+                    angler_id,
+                    SUM(point)
+                FROM
+                    fish_catch
+                GROUP BY
+                    angler_id
+            );
+            RETURN NEW;
+        END IF;
+    END;
 $BODY$ LANGUAGE plpgsql VOLATILE COST 100;
 
 ALTER FUNCTION angler_ranking_trigger_function() OWNER TO postgres;
 
-CREATE TRIGGER angler_ranking_trigger BEFORE INSERT OR UPDATE
+CREATE TRIGGER angler_ranking_trigger AFTER INSERT OR UPDATE
     ON  fish_catch FOR EACH ROW EXECUTE PROCEDURE angler_ranking_trigger_function();
