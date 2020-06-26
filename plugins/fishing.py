@@ -247,12 +247,6 @@ def selectCatch(fishInfo, userId):
 def insertFishCatch(fishInfo, userId, length):
     try:
         sql = "INSERT INTO fish_catch (fish_id, angler_id, min_length, max_length, count, point) VALUES (%s, %s, %s, %s, %s, %s)"
-        # 1匹につきレア度に応じて以下のポイントを付与
-        # 1 ** 5 = 1
-        # 2 ** 5 = 32
-        # 3 ** 5 = 243
-        # 4 ** 5 = 1024
-        # 5 ** 5 = 3125
         rarity = fishInfo.get('rarity')
         point = calc_point(rarity)
         with get_connection() as conn:
@@ -269,17 +263,8 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
     try:
         sql = "UPDATE fish_catch SET min_length=%s, max_length=%s, count=%s, point=%s where fish_id=%s and angler_id=%s"
         count = before_count + 1
-        # 1匹につきレア度に応じて以下のポイントを付与
-        # 1 ** 5 = 1
-        # 2 ** 5 = 32
-        # 3 ** 5 = 243
-        # 4 ** 5 = 1024
-        # 5 ** 5 = 3125
         rarity = fishInfo.get('rarity')
-        if rarity <= 5:
-            point = count * (fishInfo.get('rarity') ** 5)
-        else:
-            point = count * (fishInfo.get('rarity') * 2)
+        point = calc_point(rarity)
 
         with get_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
@@ -314,6 +299,12 @@ def get_connection():
 
 
 def calc_point(rarity):
+    # 1匹につきレア度に応じて以下のポイントを付与
+    # 1 ** 5 = 1
+    # 2 ** 5 = 32
+    # 3 ** 5 = 243
+    # 4 ** 5 = 1024
+    # 5 ** 5 = 3125
     if rarity <= 5:
         point = rarity ** 5
     else:
