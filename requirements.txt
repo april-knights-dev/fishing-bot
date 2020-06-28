@@ -1,3 +1,4 @@
-slackbot
-beautifulsoup4
-lxml
+slackbot==0.5.6
+slackclient==2.7.1
+requests==2.22.0
+psycopg2==2.8.5
