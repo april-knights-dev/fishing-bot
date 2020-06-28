@@ -9,7 +9,6 @@ from psycopg2.extras import DictCursor  # 辞書形式で取得するやつ
 import os
 import requests
 import urllib.request as req
-import json
 import sys
 import random
 import psycopg2
