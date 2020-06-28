@@ -1,6 +1,5 @@
 slackbot
 slackclient
 requests
-json
 random
 psycopg2
