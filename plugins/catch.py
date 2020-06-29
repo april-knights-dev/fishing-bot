@@ -1,9 +1,11 @@
 # coding: utf-8
 from slack import WebClient
+
 from slack.errors import SlackApiError
 from slackbot.bot import respond_to     # @botname: で反応するデコーダ
 from slackbot.bot import listen_to      # チャネル内発言で反応するデコーダ
 from slackbot.bot import default_reply  # 該当する応答がない場合に反応するデコーダ
+
 from psycopg2.extras import DictCursor
 import os
 import requests
@@ -247,4 +249,3 @@ def fish_catch(message):
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
-    
