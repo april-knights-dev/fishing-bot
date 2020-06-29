@@ -77,7 +77,7 @@ def listen_fishing(message):
 
     section_text = ""
     if "length" in result_dict:
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{result_dict['length']} cm \nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{result_dict['length']} cm\nコメント：{result_dict['comment']}"
     else:
         section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
 
