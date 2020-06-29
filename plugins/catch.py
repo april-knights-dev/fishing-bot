@@ -262,5 +262,5 @@ import json
 @listen_to('釣果')
 def listen_func(message):
     message.send('まだ準備中（平田くんが頑張ってます）')      # ただの投稿
-    # message.reply('君だね？')
+    # message.reply('君だねa？')
 >>>>>>> origin/master
