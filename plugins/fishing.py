@@ -32,24 +32,6 @@ client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 #                               文字列中に':'はいらない
 
 
-@listen_to('^釣りテスト$')
-def test_fishing(message):
-
-    l_fishinfo = selectFishInfoAll()
-    l_weights = selectWeigths()
-    l = []
-    w = []
-
-    # fish_idリスト作成
-    l_fishid = [d.get('fish_id') for d in l_fishinfo]
-
-    for fishid in l_fishid:
-        resultMessage = fishing(
-            fishid, l_fishinfo, user_id=message.body['user'])
-
-    message.send('全種類登録完了')
-
-
 @listen_to('^釣り$')
 def listen_fishing(message):
 
@@ -184,33 +166,6 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     result_dict['point'] = calc_point(fishInfo.get('rarity'))
 
     return result_dict
-
-
-@listen_to('^底びき網漁$')
-def fishingAll(message):
-
-    l_fishinfo = selectFishInfoAll()
-    l_weights = selectWeigths()
-    l = []
-    w = []
-
-    # fish_idリスト作成
-    l_fishid = [d.get('fish_id') for d in l_fishinfo]
-    # レア度リスト取得
-    for row in l_fishinfo:
-        rarity = row.get('rarity')
-        # レア度を％に変換する
-        for row_w in l_weights:
-            if row_w.get('rarity') == rarity:
-                w.append(row_w.get('weights'))
-
-    for num in range(100):
-        ret = random.choices(l_fishid, weights=w)
-        ret_fishid = ret[0]
-        resultMessage = fishing(ret_fishid, l_fishinfo,
-                                user_id=message.body['user'])
-
-    message.send('100匹釣ったで')
 
 
 def selectFishInfoAll():
