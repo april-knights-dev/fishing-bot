@@ -120,6 +120,9 @@ def fish_catch(message):
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
+    except SlackApiError as e:
+        send_text = "まだ登録されてませんよ？"
+        message.send(send_text)
 
 @listen_to('^ランキング$')
 def fish_catch(message):
