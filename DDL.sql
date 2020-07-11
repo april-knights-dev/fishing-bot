@@ -78,7 +78,7 @@ OR  REPLACE FUNCTION angler_ranking_trigger_function(
             (
                 SELECT
                     angler_id,
-                    SUM(point)
+                    SUM(point * count)
                 FROM
                     fish_catch
                 GROUP BY
