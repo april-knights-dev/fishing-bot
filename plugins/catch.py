@@ -64,6 +64,7 @@ def fish_catch(message):
     d = get_db_dict(sql)
     #お魚一覧とってくるよ
     user_id = message.body['user']
+    ts = message.body['ts']
     sql = "select * from fish_catch where angler_id ='" + user_id + "' ORDER BY LENGTH(fish_id) ,fish_id"
     
     catch_dict = get_db_dict(sql)
@@ -90,23 +91,11 @@ def fish_catch(message):
                             },
                             {
                                 "type": "mrkdwn",
-                                "text": fish_name
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": "レア度：" + fish_rarity
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": "釣った数：" + fish_count
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": "最小サイズ：" + fish_min
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": "最大サイズ：" + fish_max
+                                "text": f"*{fish_name}*" + "\n" +
+                                        "レア度：" + fish_rarity  + "　" + 
+                                        "釣った数：" + fish_count + "\n" + 
+                                        "最小サイズ：" + fish_min + "　" +
+                                        "最大サイズ：" + fish_max
                             }
                         ]
                     },]
@@ -115,7 +104,9 @@ def fish_catch(message):
         client.chat_postMessage(
             channel=message.body['channel'],
             username='釣堀',
-            blocks = send_text
+            blocks = send_text,
+            thread_ts = ts,
+            reply_broadcast = False
         )
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
@@ -126,24 +117,9 @@ def fish_catch(message):
 
 @listen_to('^ランキング$')
 def fish_catch(message):
-    client.chat_postMessage(
-                channel=message.body['channel'],
-                username='釣堀',
-                blocks=[
-                    {
-                        "type": "section",
-                        "text": {
-                                "type": "mrkdwn",
-                                "text": "ただいま集計中・・・"
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    }
-                ]
-            )
     #お魚一覧とってくるよ
     user_id = message.body['user']
+    ts = message.body['ts']
     sql = "select * from fish_catch where angler_id ='" + user_id + "';"
     fish_catch_dict = get_db_dict(sql)
 
@@ -244,10 +220,12 @@ def fish_catch(message):
 
     try:
         client.chat_postMessage(
-                channel=message.body['channel'],
-                username='釣堀',
-                blocks = send_text
-            )
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks = send_text,
+            thread_ts = ts,
+            reply_broadcast = False
+        )
         
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
