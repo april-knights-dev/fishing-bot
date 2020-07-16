@@ -64,6 +64,7 @@ def fish_catch(message):
     d = get_db_dict(sql)
     #お魚一覧とってくるよ
     user_id = message.body['user']
+    ts = message.body['ts']
     sql = "select * from fish_catch where angler_id ='" + user_id + "' ORDER BY LENGTH(fish_id) ,fish_id"
     
     catch_dict = get_db_dict(sql)
@@ -115,7 +116,9 @@ def fish_catch(message):
         client.chat_postMessage(
             channel=message.body['channel'],
             username='釣堀',
-            blocks = send_text
+            blocks = send_text,
+            thread_ts = ts,
+            reply_broadcast = False
         )
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
@@ -126,24 +129,9 @@ def fish_catch(message):
 
 @listen_to('^ランキング$')
 def fish_catch(message):
-    client.chat_postMessage(
-                channel=message.body['channel'],
-                username='釣堀',
-                blocks=[
-                    {
-                        "type": "section",
-                        "text": {
-                                "type": "mrkdwn",
-                                "text": "ただいま集計中・・・"
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    }
-                ]
-            )
     #お魚一覧とってくるよ
     user_id = message.body['user']
+    ts = message.body['ts']
     sql = "select * from fish_catch where angler_id ='" + user_id + "';"
     fish_catch_dict = get_db_dict(sql)
 
@@ -244,10 +232,12 @@ def fish_catch(message):
 
     try:
         client.chat_postMessage(
-                channel=message.body['channel'],
-                username='釣堀',
-                blocks = send_text
-            )
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks = send_text,
+            thread_ts = ts,
+            reply_broadcast = False
+        )
         
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
