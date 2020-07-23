@@ -18,7 +18,7 @@ import psycopg2
 client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 
 def get_connection():
-    dsn = os.environ.get('DATABASE_URL')
+    dsn = os.environ.get('HONBAN_DATABASE')
     return psycopg2.connect(dsn)
 
 def get_db_dict(sql):
@@ -76,10 +76,22 @@ def fish_catch(message):
                 fish_name = row.get('fish_name')
                 fish_icon = row.get('fish_icon')
                 fish_rarity = str(row.get('rarity'))
-                fish_min = str(catch_row.get('min_length'))
-                fish_max = str(catch_row.get('max_length'))
+                info_fish_min = str(row.get('min_length'))
+                catch_fish_min = str(catch_row.get('min_length'))
+                info_fish_max = str(row.get('max_length'))
+                catch_fish_max = str(catch_row.get('max_length'))
                 fish_count = str(catch_row.get('count'))
 
+                if info_fish_min == catch_fish_min and info_fish_min != "None":
+                    catch_fish_min = "👑" + catch_fish_min
+                elif catch_fish_min == "None":
+                    catch_fish_min = "はずれ"
+
+                if info_fish_max == catch_fish_max and info_fish_max != "None":
+                    catch_fish_max = "👑" + catch_fish_max
+                elif catch_fish_max == "None":
+                    catch_fish_max = "はずれ"
+                
                 send_text +=[
                     {
                         "type": "context",
@@ -94,8 +106,8 @@ def fish_catch(message):
                                 "text": f"*{fish_name}*" + "\n" +
                                         "レア度：" + fish_rarity  + "　" + 
                                         "釣った数：" + fish_count + "\n" + 
-                                        "最小サイズ：" + fish_min + "　" +
-                                        "最大サイズ：" + fish_max
+                                        "最小サイズ：" + catch_fish_min + "　" +
+                                        "最大サイズ：" + catch_fish_max
                             }
                         ]
                     },]
@@ -130,12 +142,19 @@ def fish_catch(message):
     #個人のトータルポイントを算出
     total_point = 0
     for catch_row in fish_catch_dict:
-            fish_point = catch_row.get('point')
-            fish_count = catch_row.get('count')
+        fish_point = catch_row.get('point')
+        fish_count = catch_row.get('count')
 
-            if catch_row.get('point') != None and catch_row.get('count') != None:
-                total_point += fish_count * fish_point
+        if catch_row.get('point') != None and catch_row.get('count') != None:
+            total_point += fish_count * fish_point
     
+    response = client.users_list()
+    users = response["members"]
+    # user_ids = list(map(lambda u: u["profile"], users))
+    user_profile_dict = {}
+    for user in users:
+        user_profile_dict[user["id"]]=user["profile"]
+
     user_id_list = []
     total_point_list = []
     for row in ranking_dict:
@@ -144,7 +163,8 @@ def fish_catch(message):
 
     user_name_list = []
     for user_id in user_id_list:
-        user_profile = client.users_profile_get(user=user_id)['profile']
+        user_profile = user_profile_dict[user_id]
+        # user_profile = client.users_profile_get(user=user_id)['profile']
         if user_profile["display_name"] != "":
             angler_name = user_profile['display_name']
         else:
