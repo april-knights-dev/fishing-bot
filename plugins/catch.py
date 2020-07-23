@@ -18,7 +18,7 @@ import psycopg2
 client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 
 def get_connection():
-    dsn = os.environ.get('HONBAN_DATABASE')
+    dsn = os.environ.get('DATABASE_URL')
     return psycopg2.connect(dsn)
 
 def get_db_dict(sql):
