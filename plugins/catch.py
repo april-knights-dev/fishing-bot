@@ -250,3 +250,88 @@ def fish_catch(message):
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
+
+@listen_to('^ヘルプ$')
+def fish_help(message):
+    ts = message.body['ts']
+    send_text = [
+        {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "おめさ何が知りてぇんだ？"
+			}
+        },
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:釣りがしたい\nA:「釣り」と入力すると釣りができます。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f3a3.png",
+				"alt_text": "釣りコマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:自分の釣った魚がみたい。\nA:「釣果一覧」と入力すると魚が見れます。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f41f.png",
+				"alt_text": "釣果コマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:ランキングが見たい。\nA:「ランキング」と入力するとランキングが見れます。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f3c6.png",
+				"alt_text": "ランキングコマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:魚のレア度って何？。\nA:魚のレア度とは希少性を表しています。\n　魚のレア度が低いと釣れやすくなりポイントが低くなります。\n　魚のレア度が高いと釣れにくくなりポイントが高くなります。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f31f.png",
+				"alt_text": "レア度の説明"
+			}
+		}]
+
+    try:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks = send_text,
+            thread_ts = ts,
+            reply_broadcast = False
+        )
+        
+    except AttributeError:
+        send_text = "まだ登録されてませんよ？"
+        message.send(send_text)
