@@ -250,3 +250,203 @@ def fish_catch(message):
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
+
+@listen_to('^ヘルプ$')
+def fish_help(message):
+    ts = message.body['ts']
+    send_text = [
+        {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "何が知りたいですか？"
+			}
+        },
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:釣りがしたい。\nA:「釣り」と入力すると釣りができます。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f3a3.png",
+				"alt_text": "釣りコマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:自分の釣った魚が見たい。\nA:「釣果」と入力すると釣った魚が見れます。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f41f.png",
+				"alt_text": "釣果コマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:ランキングが見たい。\nA:「ランキング」と入力するとランキングが見れます。\n自分のポイントを確認することもできます。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f3c6.png",
+				"alt_text": "ランキングコマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:魚のレア度って何？\nA:魚のレア度は希少性を表しています。\nレア度が低いとポイントは低いですが釣れやすくなります。\nレア度が高いとポイントが高いですが釣れにくくなります。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f31f.png",
+				"alt_text": "レア度の説明"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:サイズの横についてる金冠は何？\nA:金冠はその魚の最大または最小サイズを釣ると表示されます。\nモンスターハンターの討伐サイズの最大最小をイメージしてもらえるとわかりやすいです。\nわからない方はモンスターハンターをプレイしてください。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f451.png",
+				"alt_text": "レア度の説明"
+			}
+		}]
+
+    try:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks = send_text,
+            thread_ts = ts,
+            reply_broadcast = False
+        )
+        
+    except AttributeError:
+        send_text = "まだ登録されてませんよ？"
+        message.send(send_text)
+
+@listen_to('^野沢ヘルプ$')
+def fish_help(message):
+    ts = message.body['ts']
+    send_text = [
+        {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "おめぇは何が知りてぇんだ？"
+			}
+        },
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:釣りがしてぇ。\nA:「釣り」っちゅうと魚が釣れっぞぉ。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f3a3.png",
+				"alt_text": "釣りコマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:自分の釣った魚が見てぇ。\nA:「釣果」っちゅうと自分が釣った魚が見れっぞぉ。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f41f.png",
+				"alt_text": "釣果コマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:つぇえ奴が見てぇ。\nA:「ランキング」っちゅうとつえぇ奴らがわかってわくわくすっぞぉ。\n自分の戦闘力も確認できっぞぉ。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f3c6.png",
+				"alt_text": "ランキングコマンド"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:魚のレア度ってなんだぁ？\nA:魚の希少性を現してっぞぉ。\nよぇえ奴を釣るとポイントがひきぃ。\nつぇえ奴を釣るとポイントがたけぇ。"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f31f.png",
+				"alt_text": "レア度の説明"
+			}
+		},
+        {
+			"type": "divider"
+		},
+		{
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": "Q:釣果についてる金冠はなんだぁ？\nA:金冠は魚のセイデェ、セイショウのセェズを釣ると釣果に表示されっぞぉ。\nモンステェーヘンテェーのテェバツセェズのセイデェ、セイショウをイメージすっとわかりやしぃぞぉ。\nわかんねぇやつはモンハンをいっちょやってみっかぁ！"
+			},
+			"accessory": {
+				"type": "image",
+				"image_url": "https://twemoji.maxcdn.com/v/13.0.1/72x72/1f451.png",
+				"alt_text": "レア度の説明"
+			}
+		}]
+
+    try:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks = send_text,
+            thread_ts = ts,
+            reply_broadcast = False
+        )
+        
+    except AttributeError:
+        send_text = "まだ登録されてませんよ？"
+        message.send(send_text)
