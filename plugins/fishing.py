@@ -59,7 +59,9 @@ def listen_fishing(message):
 
     section_text = ""
     if "length" in result_dict:
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{result_dict['length']} cm\nコメント：{result_dict['comment']}"
+        length_text = lengthText(result_dict)
+
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{result_dict['length']}{length_text}\nコメント：{result_dict['comment']}"
     else:
         section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
 
@@ -116,6 +118,9 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     result_dict['fish_name'] = fishInfo.get('fish_name')
     result_dict['fish_icon'] = fishInfo.get('fish_icon')
     result_dict['comment'] = fishInfo.get('comment')
+    #UPDATE-20200824-#23　最大最小判断時に必要なデータ　辞書の中身更新
+    result_dict['info_min'] = fishInfo.get('min_length')
+    result_dict['info_max'] = fishInfo.get('max_length')
 
     # 体長を範囲内でランダム生成
     flen = 0
@@ -137,9 +142,19 @@ def fishing(ret_fishid, l_fishinfo, user_id):
 
     if len(l_catch_list) == 0:
         # まだ釣ってなかったら登録
+        #UPDATE-20200824-#24 最大最小フラグ
+        result_dict['min_max_flag'] = 0
+
+        #UPDATE-20200824-#25 新しく釣ったフラグ
+        result_dict['new_flag'] = 1
         insertFishCatch(fishInfo, user_id, flen)
     else:
         # 既に釣ってたら最小最長cm、釣った数、ポイントを更新
+        #UPDATE-20200824-#24 最大最小フラグ
+        result_dict['min_max_flag'] = 0
+        #UPDATE-20200824-#25 新しく釣ったフラグエラー阻止
+        result_dict['new_flag'] = 0
+
         dict_catch = l_catch_list[0]
         before_count = dict_catch.get('count')
         before_point = dict_catch.get('point')
@@ -151,10 +166,14 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         if fishInfo.get('min_length') != None:
             if flen < catch_min:
                 min_length = flen
+                #UPDATE-20200824-#24 最小を更新した場合 1 を付与
+                result_dict['min_max_flag'] = 1
             else:
                 min_length = catch_min
             if flen > catch_max:
                 max_length = flen
+                #UPDATE-20200824-#24 最小を更新した場合 2 を付与
+                result_dict['min_max_flag'] = 2
             else:
                 max_length = catch_max
         else:
@@ -229,9 +248,26 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
     except psycopg2.Error as e:
         print(e)
 
+# 金冠　最大、最小　初めて釣ったか判定する
+def lengthText(result_dict):
+    length_text = " cm"
+    #UPDATE-20200824-#23 最大または最小を釣った場合👑をつける
+    if result_dict['length'] != 0:
+        if result_dict['info_min'] == result_dict['length'] or result_dict['info_max'] == result_dict['length']:
+            length_text = length_text + "👑"
+
+    #UPDATE-20200824-#24 最大最小を更新した場合 UPを付与
+    if result_dict['min_max_flag'] == 1:
+        length_text = length_text + ":small_red_triangle_down::up:"
+    elif result_dict['min_max_flag'] == 2:
+        length_text = length_text + ":small_red_triangle::up:"
+
+    #UPDATE-20200824-#24 新しく釣った魚にnewを付与
+    if result_dict['new_flag'] == 1:
+        result_dict['fish_name'] = result_dict['fish_name'] + ":new:"
+    return length_text
+
 # dict_factoryの定義
-
-
 def dict_factory(cursor, row):
     d = {}
     for idx, col in enumerate(cursor.description):
