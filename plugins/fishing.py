@@ -55,7 +55,7 @@ def listen_fishing(message):
     ret_fishid = ret[0]
     fishing_return_list = []
     fishing_return_list = fishing(ret_fishid, l_fishinfo,
-                          user_id=message.body['user'])
+                                  user_id=message.body['user'])
 
     result_dict = fishing_return_list[0]
     update_code = fishing_return_list[1]
@@ -63,7 +63,7 @@ def listen_fishing(message):
 
     section_text = ""
     if "length" in result_dict:
-        length_text = lengthText(result_dict,update_code, before_length)
+        length_text = lengthText(result_dict, update_code, before_length)
 
         section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
     else:
@@ -122,7 +122,7 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     result_dict['fish_name'] = fishInfo.get('fish_name')
     result_dict['fish_icon'] = fishInfo.get('fish_icon')
     result_dict['comment'] = fishInfo.get('comment')
-    #UPDATE-20200914-#23　最大最小判断時に必要なデータ　辞書の中身更新
+    # UPDATE-20200914-#23　最大最小判断時に必要なデータ　辞書の中身更新
     result_dict['info_min'] = fishInfo.get('min_length')
     result_dict['info_max'] = fishInfo.get('max_length')
 
@@ -143,11 +143,11 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     # 釣果を検索
     # 検索条件
     l_catch_list = selectCatch(fishInfo, user_id)
-    #UPDATE-20200914-#24#25 最大、最小、新しく釣った魚を判定するためのリスト
+    # UPDATE-20200914-#24#25 最大、最小、新しく釣った魚を判定するためのリスト
     update_code = []
     if len(l_catch_list) == 0:
-        #UPDATE-20200914-#25 新しく釣ったフラグ
-        update_code.append("new")  
+        # UPDATE-20200914-#25 新しく釣ったフラグ
+        update_code.append("new")
 
         # まだ釣ってなかったら登録
         insertFishCatch(fishInfo, user_id, flen)
@@ -165,14 +165,14 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         if fishInfo.get('min_length') != None:
             if flen < catch_min:
                 min_length = flen
-                #UPDATE-20200914-#24 最小を更新した
+                # UPDATE-20200914-#24 最小を更新した
                 update_code.append("min")
                 before_length = catch_min
             else:
                 min_length = catch_min
             if flen > catch_max:
                 max_length = flen
-                #UPDATE-20200914-#24 最大を更新した
+                # UPDATE-20200914-#24 最大を更新した
                 update_code.append("max")
                 before_length = catch_max
             else:
@@ -186,6 +186,7 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     result_dict['point'] = calc_point(fishInfo.get('rarity'))
 
     return result_dict, update_code, before_length
+
 
 def selectFishInfoAll():
     with get_connection() as conn:
@@ -249,20 +250,22 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
         print(e)
 
 # 金冠　最大、最小　初めて釣ったか判定する
-def lengthText(result_dict,update_code, before_length):
+def lengthText(result_dict, update_code, before_length):
     length_text = str(result_dict['length']) + " cm"
-    #UPDATE-20200914-#23 最大または最小を釣った場合👑をつける
+    # UPDATE-20200914-#23 最大または最小を釣った場合👑をつける
     if result_dict['length'] != 0:
         if result_dict['info_min'] == result_dict['length'] or result_dict['info_max'] == result_dict['length']:
-            length_text = "👑 " + length_text 
+            length_text = "👑 " + length_text
 
-    #UPDATE-20200914-#24 最大最小を更新した場合 UPを付与
+    # UPDATE-20200914-#24 最大最小を更新した場合 UPを付与
     if True in [i in "min" for i in update_code]:
-        length_text = str(before_length) +  " -> " + length_text + " :fishing-up-blue: 最小更新!!"
+        length_text = str(before_length) + " -> " + \
+            length_text + " :fishing-up-blue: 最小更新!!"
     elif True in [i in "max" for i in update_code]:
-        length_text = str(before_length) +  " -> " + length_text + " :fishing-up: 最大更新!!" 
+        length_text = str(before_length) + " -> " + \
+            length_text + " :fishing-up: 最大更新!!"
 
-    #UPDATE-20200914-#24 新しく釣った魚にnewを付与
+    # UPDATE-20200914-#24 新しく釣った魚にnewを付与
     if True in [i in "new" for i in update_code]:
         result_dict['fish_name'] = result_dict['fish_name'] + " :new:"
     return length_text
@@ -271,7 +274,7 @@ def lengthText(result_dict,update_code, before_length):
 def dict_factory(cursor, row):
     d = {}
     for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
+        d[col[0]] = row[idx]    
     return d
 
 
