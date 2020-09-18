@@ -145,6 +145,8 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     l_catch_list = selectCatch(fishInfo, user_id)
     # UPDATE-20200914-#24#25 最大、最小、新しく釣った魚を判定するためのリスト
     update_code = []
+    # 前回釣った魚のサイズ
+    before_length = None
     if len(l_catch_list) == 0:
         # UPDATE-20200914-#25 新しく釣ったフラグ
         update_code.append("new")
@@ -160,7 +162,6 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         catch_max = dict_catch.get('max_length')
         min_length = None
         max_length = None
-        before_length = None
 
         if fishInfo.get('min_length') != None:
             if flen < catch_min:
