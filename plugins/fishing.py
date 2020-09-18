@@ -270,22 +270,6 @@ def lengthText(result_dict, update_code, before_length):
         result_dict['fish_name'] = result_dict['fish_name'] + " :new:"
     return length_text
 
-# dict_factoryの定義
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]    
-    return d
-
-
-def is_int(s):
-    try:
-        int(s)
-        return True
-    except ValueError:
-        return False
-
-
 def get_connection():
     dsn = os.getenv('DATABASE_URL')
     return psycopg2.connect(dsn)
