@@ -111,3 +111,4 @@ dmypy.json
 # End of https://www.toptal.com/developers/gitignore/api/python
 # Mac User
 .DS_Store
+.vscode/launch.json

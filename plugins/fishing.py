@@ -12,6 +12,8 @@ import urllib.request as req
 import sys
 import random
 import psycopg2
+import datetime
+import math
 
 client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 
@@ -39,9 +41,36 @@ def listen_fishing(message):
     l_weights = selectWeigths()
     l = []
     w = []
+    # 朝と夜で２つ作る必要あり
+    bonus_time_rate = os.getenv('BONUS_TIME_RATE')
+    bonus_start_HHmmss_1 = os.getenv('BONUS_START_TIME_1')
+    bonus_end_HHmmss_1 = os.getenv('BONUS_END_TIME_1')
+    bonus_start_HHmmss_2 = os.getenv('BONUS_START_TIME_2')
+    bonus_end_HHmmss_2 = os.getenv('BONUS_END_TIME_2')
+    ts = message.body['ts']
+    message_HHmmss = datetime.datetime.fromtimestamp(
+        math.floor(float(ts))).strftime('%H:%M')
+    isBonusTime = False
 
     # fish_idリスト作成
     l_fishid = [d.get('fish_id') for d in l_fishinfo]
+
+    bonus_message = None
+
+    if bonus_start_HHmmss_1 <= message_HHmmss <= bonus_end_HHmmss_1:
+        bonus_message = bonus_start_HHmmss_1 + '～' + \
+            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！'
+        isBonusTime = True
+    elif bonus_start_HHmmss_2 <= message_HHmmss <= bonus_end_HHmmss_2:
+        bonus_message = bonus_start_HHmmss_2 + '～' + \
+            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！'
+        isBonusTime = True
+
+    if isBonusTime:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            text=bonus_message)
 
     # レア度リスト取得
     for row in l_fishinfo:
@@ -49,7 +78,10 @@ def listen_fishing(message):
         # レア度を％に変換する
         for row_w in l_weights:
             if row_w.get('rarity') == rarity:
-                w.append(row_w.get('weights'))
+                if isBonusTime and 4 <= rarity:
+                    w.append(row_w.get('weights')*int(bonus_time_rate))
+                else:
+                    w.append(row_w.get('weights'))
 
     ret = random.choices(l_fishid, weights=w)
     ret_fishid = ret[0]
@@ -251,6 +283,8 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
         print(e)
 
 # 金冠　最大、最小　初めて釣ったか判定する
+
+
 def lengthText(result_dict, update_code, before_length):
     length_text = str(result_dict['length']) + " cm"
     # UPDATE-20200914-#23 最大または最小を釣った場合👑をつける
@@ -270,6 +304,7 @@ def lengthText(result_dict, update_code, before_length):
     if True in [i in "new" for i in update_code]:
         result_dict['fish_name'] = result_dict['fish_name'] + " :new:"
     return length_text
+
 
 def get_connection():
     dsn = os.getenv('DATABASE_URL')
