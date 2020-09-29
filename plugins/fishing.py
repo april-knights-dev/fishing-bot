@@ -59,11 +59,13 @@ def listen_fishing(message):
 
     if bonus_start_HHmmss_1 <= message_HHmmss <= bonus_end_HHmmss_1:
         bonus_message = bonus_start_HHmmss_1 + '～' + \
-            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！'
+            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            'リモート勤務のやつはきんてぇ連絡出したか？'
         isBonusTime = True
     elif bonus_start_HHmmss_2 <= message_HHmmss <= bonus_end_HHmmss_2:
         bonus_message = bonus_start_HHmmss_2 + '～' + \
-            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！'
+            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            '日報わすれっなよ！'
         isBonusTime = True
 
     if isBonusTime:
