@@ -12,6 +12,8 @@ import urllib.request as req
 import sys
 import random
 import psycopg2
+import datetime
+import math
 
 client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 
@@ -39,9 +41,38 @@ def listen_fishing(message):
     l_weights = selectWeigths()
     l = []
     w = []
+    # 朝と夜で２つ作る必要あり
+    bonus_time_rate = os.getenv('BONUS_TIME_RATE')
+    bonus_start_HHmmss_1 = os.getenv('BONUS_START_TIME_1')
+    bonus_end_HHmmss_1 = os.getenv('BONUS_END_TIME_1')
+    bonus_start_HHmmss_2 = os.getenv('BONUS_START_TIME_2')
+    bonus_end_HHmmss_2 = os.getenv('BONUS_END_TIME_2')
+    ts = message.body['ts']
+    message_HHmmss = datetime.datetime.fromtimestamp(
+        math.floor(float(ts))).strftime('%H:%M')
+    isBonusTime = False
 
     # fish_idリスト作成
     l_fishid = [d.get('fish_id') for d in l_fishinfo]
+
+    bonus_message = None
+
+    if bonus_start_HHmmss_1 <= message_HHmmss <= bonus_end_HHmmss_1:
+        bonus_message = bonus_start_HHmmss_1 + '～' + \
+            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            'リモート勤務のやつはきんてぇ連絡出したか？'
+        isBonusTime = True
+    elif bonus_start_HHmmss_2 <= message_HHmmss <= bonus_end_HHmmss_2:
+        bonus_message = bonus_start_HHmmss_2 + '～' + \
+            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            '日報わすれっなよ！'
+        isBonusTime = True
+
+    if isBonusTime:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            text=bonus_message)
 
     # レア度リスト取得
     for row in l_fishinfo:
@@ -49,17 +80,26 @@ def listen_fishing(message):
         # レア度を％に変換する
         for row_w in l_weights:
             if row_w.get('rarity') == rarity:
-                w.append(row_w.get('weights'))
+                if isBonusTime and 4 <= rarity:
+                    w.append(row_w.get('weights')*int(bonus_time_rate))
+                else:
+                    w.append(row_w.get('weights'))
 
     ret = random.choices(l_fishid, weights=w)
     ret_fishid = ret[0]
+    fishing_return_list = []
+    fishing_return_list = fishing(ret_fishid, l_fishinfo,
+                                  user_id=message.body['user'])
 
-    result_dict = fishing(ret_fishid, l_fishinfo,
-                          user_id=message.body['user'])
+    result_dict = fishing_return_list[0]
+    update_code = fishing_return_list[1]
+    before_length = fishing_return_list[2]
 
     section_text = ""
     if "length" in result_dict:
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{result_dict['length']} cm\nコメント：{result_dict['comment']}"
+        length_text = lengthText(result_dict, update_code, before_length)
+
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
     else:
         section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
 
@@ -116,6 +156,9 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     result_dict['fish_name'] = fishInfo.get('fish_name')
     result_dict['fish_icon'] = fishInfo.get('fish_icon')
     result_dict['comment'] = fishInfo.get('comment')
+    # UPDATE-20200914-#23　最大最小判断時に必要なデータ　辞書の中身更新
+    result_dict['info_min'] = fishInfo.get('min_length')
+    result_dict['info_max'] = fishInfo.get('max_length')
 
     # 体長を範囲内でランダム生成
     flen = 0
@@ -134,8 +177,14 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     # 釣果を検索
     # 検索条件
     l_catch_list = selectCatch(fishInfo, user_id)
-
+    # UPDATE-20200914-#24#25 最大、最小、新しく釣った魚を判定するためのリスト
+    update_code = []
+    # 前回釣った魚のサイズ
+    before_length = None
     if len(l_catch_list) == 0:
+        # UPDATE-20200914-#25 新しく釣ったフラグ
+        update_code.append("new")
+
         # まだ釣ってなかったら登録
         insertFishCatch(fishInfo, user_id, flen)
     else:
@@ -151,10 +200,16 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         if fishInfo.get('min_length') != None:
             if flen < catch_min:
                 min_length = flen
+                # UPDATE-20200914-#24 最小を更新した
+                update_code.append("min")
+                before_length = catch_min
             else:
                 min_length = catch_min
             if flen > catch_max:
                 max_length = flen
+                # UPDATE-20200914-#24 最大を更新した
+                update_code.append("max")
+                before_length = catch_max
             else:
                 max_length = catch_max
         else:
@@ -165,7 +220,7 @@ def fishing(ret_fishid, l_fishinfo, user_id):
 
     result_dict['point'] = calc_point(fishInfo.get('rarity'))
 
-    return result_dict
+    return result_dict, update_code, before_length
 
 
 def selectFishInfoAll():
@@ -229,22 +284,28 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
     except psycopg2.Error as e:
         print(e)
 
-# dict_factoryの定義
+# 金冠　最大、最小　初めて釣ったか判定する
 
 
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
+def lengthText(result_dict, update_code, before_length):
+    length_text = str(result_dict['length']) + " cm"
+    # UPDATE-20200914-#23 最大または最小を釣った場合👑をつける
+    if result_dict['length'] != 0:
+        if result_dict['info_min'] == result_dict['length'] or result_dict['info_max'] == result_dict['length']:
+            length_text = "👑 " + length_text
 
+    # UPDATE-20200914-#24 最大最小を更新した場合 UPを付与
+    if True in [i in "min" for i in update_code]:
+        length_text = str(before_length) + " -> " + \
+            length_text + " :fishing-up-blue: 最小更新!!"
+    elif True in [i in "max" for i in update_code]:
+        length_text = str(before_length) + " -> " + \
+            length_text + " :fishing-up: 最大更新!!"
 
-def is_int(s):
-    try:
-        int(s)
-        return True
-    except ValueError:
-        return False
+    # UPDATE-20200914-#24 新しく釣った魚にnewを付与
+    if True in [i in "new" for i in update_code]:
+        result_dict['fish_name'] = result_dict['fish_name'] + " :new:"
+    return length_text
 
 
 def get_connection():
