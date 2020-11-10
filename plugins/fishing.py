@@ -39,10 +39,12 @@ def listen_fishing(message):
 
     l_fishinfo = selectFishInfoAll()
     l_weights = selectWeigths()
+    l_rarity = select_rarity()
     l = []
     w = []
     # 朝と夜で２つ作る必要あり
-    bonus_time_rate = os.getenv('BONUS_TIME_RATE')
+    bonus_time_increase_rate = os.getenv('BONUS_TIME_INCREASE_RATE')
+    bonus_time_reduced_rate = os.getenv('BONUS_TIME_REDUCED_RATE')
     bonus_start_HHmmss_1 = os.getenv('BONUS_START_TIME_1')
     bonus_end_HHmmss_1 = os.getenv('BONUS_END_TIME_1')
     bonus_start_HHmmss_2 = os.getenv('BONUS_START_TIME_2')
@@ -59,12 +61,12 @@ def listen_fishing(message):
 
     if bonus_start_HHmmss_1 <= message_HHmmss <= bonus_end_HHmmss_1:
         bonus_message = bonus_start_HHmmss_1 + '～' + \
-            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_increase_rate + 'べえだ！' + \
             'リモート勤務のやつはきんてぇ連絡出したか？'
         isBonusTime = True
     elif bonus_start_HHmmss_2 <= message_HHmmss <= bonus_end_HHmmss_2:
         bonus_message = bonus_start_HHmmss_2 + '～' + \
-            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_increase_rate + 'べえだ！' + \
             '日報わすれっなよ！'
         isBonusTime = True
 
@@ -74,19 +76,21 @@ def listen_fishing(message):
             username='釣堀',
             text=bonus_message)
 
-    # レア度リスト取得
-    for row in l_fishinfo:
-        rarity = row.get('rarity')
         # レア度を％に変換する
         for row_w in l_weights:
-            if row_w.get('rarity') == rarity:
-                if isBonusTime and 4 <= rarity:
-                    w.append(row_w.get('weights')*int(bonus_time_rate))
-                else:
-                    w.append(row_w.get('weights'))
+            if isBonusTime and 4 <= row_w.get('rarity'):
+                w.append(row_w.get('weights')*int(bonus_time_increase_rate))
+            elif isBonusTime and 1 == row_w.get('rarity'):
+                w.append(row_w.get('weights')/int(bonus_time_reduced_rate))
+            else:
+                w.append(row_w.get('weights'))
 
-    ret = random.choices(l_fishid, weights=w)
-    ret_fishid = ret[0]
+    # レア度をどれにするか重み付けありでチョイス
+    ret = random.choices(l_rarity, weights=w)
+    # チョイスされたレア度のfish_idを抽出
+    target_fishlist = select_fishinfo_filtered_rarity(ret)
+    # レア度が同じfish_idからランダムで１つ選択
+    ret_fishid = target_fishlist[random.randrange(len(target_fishlist))].get('fish_id')
     fishing_return_list = []
     fishing_return_list = fishing(ret_fishid, l_fishinfo,
                                   user_id=message.body['user'])
@@ -99,9 +103,11 @@ def listen_fishing(message):
     if "length" in result_dict:
         length_text = lengthText(result_dict, update_code, before_length)
 
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n + \
+            ポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
     else:
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n + \
+            ポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
 
     angler_name = ""
     user_profile = client.users_profile_get(
@@ -240,6 +246,23 @@ def selectWeigths():
 
     return dictList
 
+def select_rarity():
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("select rarity from weights")
+            dictList = cur.fetchall()
+
+    return dictList
+
+def select_fishinfo_filtered_rarity(rarity):
+
+    sql = "select * from fish_info where rarity =%s"
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute(sql, rarity[0])
+            dictList = cur.fetchall()
+
+    return dictList
 
 def selectCatch(fishInfo, userId):
 
