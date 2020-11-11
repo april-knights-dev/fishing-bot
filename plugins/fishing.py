@@ -76,14 +76,14 @@ def listen_fishing(message):
             username='釣堀',
             text=bonus_message)
 
-        # レア度を％に変換する
-        for row_w in l_weights:
-            if isBonusTime and 4 <= row_w.get('rarity'):
-                w.append(row_w.get('weights')*int(bonus_time_increase_rate))
-            elif isBonusTime and 1 == row_w.get('rarity'):
-                w.append(row_w.get('weights')/int(bonus_time_reduced_rate))
-            else:
-                w.append(row_w.get('weights'))
+    # レア度を％に変換する
+    for row_w in l_weights:
+        if isBonusTime and 4 <= row_w.get('rarity'):
+            w.append(row_w.get('weights')*int(bonus_time_increase_rate))
+        elif isBonusTime and 1 == row_w.get('rarity'):
+            w.append(row_w.get('weights')/int(bonus_time_reduced_rate))
+        else:
+            w.append(row_w.get('weights'))
 
     # レア度をどれにするか重み付けありでチョイス
     ret = random.choices(l_rarity, weights=w)
