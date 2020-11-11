@@ -103,11 +103,11 @@ def listen_fishing(message):
     if "length" in result_dict:
         length_text = lengthText(result_dict, update_code, before_length)
 
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n + \
-            ポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n \
+ポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
     else:
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n + \
-            ポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n \
+ポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
 
     angler_name = ""
     user_profile = client.users_profile_get(
