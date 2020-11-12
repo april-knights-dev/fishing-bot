@@ -76,21 +76,23 @@ def listen_fishing(message):
             username='釣堀',
             text=bonus_message)
 
-        # レア度を％に変換する
-        for row_w in l_weights:
-            if isBonusTime and 4 <= row_w.get('rarity'):
-                w.append(row_w.get('weights')*int(bonus_time_increase_rate))
-            elif isBonusTime and 1 == row_w.get('rarity'):
-                w.append(row_w.get('weights')/int(bonus_time_reduced_rate))
-            else:
-                w.append(row_w.get('weights'))
+    # レア度を％に変換する
+    for row_w in l_weights:
+        if isBonusTime and 4 <= row_w.get('rarity'):
+            w.append(row_w.get('weights')*int(bonus_time_increase_rate))
+        elif isBonusTime and 1 == row_w.get('rarity'):
+            w.append(row_w.get('weights')/int(bonus_time_reduced_rate))
+        else:
+            w.append(row_w.get('weights'))
 
     # レア度をどれにするか重み付けありでチョイス
     ret = random.choices(l_rarity, weights=w)
     # チョイスされたレア度のfish_idを抽出
     target_fishlist = select_fishinfo_filtered_rarity(ret)
     # レア度が同じfish_idからランダムで１つ選択
-    ret_fishid = target_fishlist[random.randrange(len(target_fishlist))].get('fish_id')
+    ret_fishid = target_fishlist[random.randrange(
+        len(target_fishlist))].get('fish_id')
+    # 釣果登録更新
     fishing_return_list = []
     fishing_return_list = fishing(ret_fishid, l_fishinfo,
                                   user_id=message.body['user'])
@@ -99,19 +101,22 @@ def listen_fishing(message):
     update_code = fishing_return_list[1]
     before_length = fishing_return_list[2]
 
+    # ランキングにポイント加算
+    upsert_ranking(user_id=message.body['user'], point=result_dict['point'])
+
     section_text = ""
     if "length" in result_dict:
         length_text = lengthText(result_dict, update_code, before_length)
-
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n \
-ポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n" \
+            f"ポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
     else:
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n \
-ポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n" \
+            f"ポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
 
     angler_name = ""
     user_profile = client.users_profile_get(
         user=message.body['user'])['profile']
+
     if user_profile["display_name"] != "":
         angler_name = user_profile['display_name']
     else:
@@ -246,6 +251,7 @@ def selectWeigths():
 
     return dictList
 
+
 def select_rarity():
     with get_connection() as conn:
         with conn.cursor(cursor_factory=DictCursor) as cur:
@@ -253,6 +259,7 @@ def select_rarity():
             dictList = cur.fetchall()
 
     return dictList
+
 
 def select_fishinfo_filtered_rarity(rarity):
 
@@ -263,6 +270,7 @@ def select_fishinfo_filtered_rarity(rarity):
             dictList = cur.fetchall()
 
     return dictList
+
 
 def selectCatch(fishInfo, userId):
 
@@ -307,10 +315,27 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
     except psycopg2.Error as e:
         print(e)
 
-# 金冠　最大、最小　初めて釣ったか判定する
+
+def upsert_ranking(user_id, point):
+    try:
+        created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sql = "INSERT INTO angler_ranking(angler_id, total_point, weekly_point, monthly_point, created_at)"\
+            f"VALUES('{user_id}',{point},{point},{point},'{created_at}')"\
+            "ON CONFLICT (angler_id) DO UPDATE "\
+            f"SET total_point = angler_ranking.total_point + {point}"\
+            f", weekly_point = angler_ranking.weekly_point + {point}"\
+            f", monthly_point = angler_ranking.monthly_point + {point}"
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(sql, [point, user_id])
+                conn.commit()
+    except psycopg2.Error as e:
+        print(e)
 
 
 def lengthText(result_dict, update_code, before_length):
+    # 金冠　最大、最小　初めて釣ったか判定する
     length_text = str(result_dict['length']) + " cm"
     # UPDATE-20200914-#23 最大または最小を釣った場合👑をつける
     if result_dict['length'] != 0:

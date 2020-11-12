@@ -31,6 +31,26 @@ def get_db_dict(sql):
     return dictList
 
 
+def get_ranking_(sql):
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute(sql)
+            dictList = cur.fetchall()
+    return dictList
+
+
+def get_personal_totalpoint(fish_catch_dict):
+    total_point = 0
+    for catch_row in fish_catch_dict:
+        fish_point = catch_row.get('point')
+        fish_count = catch_row.get('count')
+
+    if catch_row.get('point') != None and catch_row.get('count') != None:
+        total_point += fish_count * fish_point
+
+    return total_point
+
+
 @listen_to('^釣果$')
 def fish_catch(message):
     # お魚リストとってくるよ
@@ -104,115 +124,31 @@ def fish_catch(message):
 
 
 @listen_to('^ランキング$')
-def fish_catch(message):
+def listen_ranking(message):
     # お魚一覧とってくるよ
     user_id = message.body['user']
     ts = message.body['ts']
-    sql = "select * from fish_catch where angler_id ='" + user_id + "';"
-    fish_catch_dict = get_db_dict(sql)
 
-    # ランキング取得
-    sql = "select * from angler_ranking ORDER BY total_point DESC LIMIT 10;"
-    ranking_dict = get_db_dict(sql)
-
-    # 個人のトータルポイントを算出
-    total_point = 0
-    for catch_row in fish_catch_dict:
-        fish_point = catch_row.get('point')
-        fish_count = catch_row.get('count')
-
-        if catch_row.get('point') != None and catch_row.get('count') != None:
-            total_point += fish_count * fish_point
-
+    # 全メンバーのプロフィール取得
     response = client.users_list()
     users = response["members"]
-    # user_ids = list(map(lambda u: u["profile"], users))
+
     user_profile_dict = {}
     for user in users:
         user_profile_dict[user["id"]] = user["profile"]
 
-    user_id_list = []
-    total_point_list = []
-    for row in ranking_dict:
-        user_id_list.append(row.get('angler_id'))
-        total_point_list.append(row.get('total_point'))
+    # 全期間自分の釣果
+    sql = "select * from fish_catch where angler_id ='" + user_id + "';"
+    fish_catch_dict = get_db_dict(sql)
 
-    user_name_list = []
-    for user_id in user_id_list:
-        user_profile = user_profile_dict[user_id]
-        # user_profile = client.users_profile_get(user=user_id)['profile']
-        if user_profile["display_name"] != "":
-            angler_name = user_profile['display_name']
-        else:
-            angler_name = user_profile['real_name']
+    # 個人のトータルポイントを算出
+    total_point = get_personal_totalpoint(fish_catch_dict)
 
-        user_name_list.append(angler_name)
+    # 全期間ランキング取得
+    sql = "select * from angler_ranking ORDER BY total_point DESC LIMIT 10;"
+    ranking_dict = get_db_dict(sql)
 
-    send_text = []
-    for count in range(0, len(user_name_list)):
-        if count == 10:
-            break
-
-        if count == 0:
-            send_text += [
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": str(count+1) + "位"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": user_name_list[count]
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": str(total_point_list[count])
-                        },
-                        {
-                            "type": "image",
-                            "image_url": "https://twemoji.maxcdn.com/2/72x72/1f451.png",
-                            "alt_text": "icon"
-                        }
-                    ]
-                },
-            ]
-        else:
-            send_text += [
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": str(count+1) + "位"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": user_name_list[count]
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": str(total_point_list[count])
-                        }
-                    ]
-                },
-            ]
-
-    send_text += [
-        {
-            "type": "context",
-            "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": "自分のトータルポイント:" + str(total_point)
-                    }
-            ]
-        },
-        {
-            "type": "divider"
-        },
-    ]
+    send_text = get_send_text(ranking_dict, user_profile_dict, total_point)
 
     try:
         client.chat_postMessage(
@@ -222,7 +158,50 @@ def fish_catch(message):
             thread_ts=ts,
             reply_broadcast=False
         )
+    except AttributeError:
+        send_text = "まだ登録されてませんよ？"
+        message.send(send_text)
 
+    # personal weekly point
+    sql = "select weekly_point from angler_ranking where angler_id ='" + user_id + "';"
+    total_point = get_db_dict(sql)
+
+    # get weekly ranking
+    sql = "select * from angler_ranking ORDER BY weekly_point DESC LIMIT 10;"
+    ranking_dict = get_db_dict(sql)
+
+    send_text = get_send_text(ranking_dict, user_profile_dict, total_point)
+
+    try:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks=send_text,
+            thread_ts=ts,
+            reply_broadcast=False
+        )
+    except AttributeError:
+        send_text = "まだ登録されてませんよ？"
+        message.send(send_text)
+
+    # personal monthly point
+    sql = "select monthly_point from angler_ranking where angler_id ='" + user_id + "';"
+    total_point = get_db_dict(sql)
+
+    # get monthly ranking
+    sql = "select * from angler_ranking ORDER BY monthly_point DESC LIMIT 10;"
+    ranking_dict = get_db_dict(sql)
+
+    send_text = get_send_text(ranking_dict, user_profile_dict, total_point)
+
+    try:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks=send_text,
+            thread_ts=ts,
+            reply_broadcast=False
+        )
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
@@ -428,3 +407,90 @@ def fish_help(message):
     except AttributeError:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
+
+
+def get_send_text(ranking_dict, user_profile_dict, total_point):
+    user_id_list = []
+    total_point_list = []
+    for row in ranking_dict:
+        user_id_list.append(row.get('angler_id'))
+        total_point_list.append(row.get('total_point'))
+
+    user_name_list = []
+    for user_id in user_id_list:
+        user_profile = user_profile_dict[user_id]
+
+        if user_profile["display_name"] != "":
+            angler_name = user_profile['display_name']
+        else:
+            angler_name = user_profile['real_name']
+
+        user_name_list.append(angler_name)
+
+    send_text = []
+    for count in range(0, len(user_name_list)):
+        if count == 10:
+            break
+
+        if count == 0:
+            send_text += [
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": str(count+1) + "位"
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": user_name_list[count]
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": str(total_point_list[count])
+                        },
+                        {
+                            "type": "image",
+                            "image_url": "https://twemoji.maxcdn.com/2/72x72/1f451.png",
+                            "alt_text": "icon"
+                        }
+                    ]
+                },
+            ]
+        else:
+            send_text += [
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": str(count+1) + "位"
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": user_name_list[count]
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": str(total_point_list[count])
+                        }
+                    ]
+                },
+            ]
+
+    send_text += [
+        {
+            "type": "context",
+            "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "自分のトータルポイント:" + str(total_point)
+                    }
+            ]
+        },
+        {
+            "type": "divider"
+        },
+    ]
+
+    return send_text
