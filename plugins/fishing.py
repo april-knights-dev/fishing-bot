@@ -106,7 +106,7 @@ def listen_fishing(message):
 
     section_text = ""
     if "length" in result_dict:
-        length_text = lengthText(result_dict, update_code, before_length)
+        length_text = get_length_text(result_dict, update_code, before_length)
         section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n" \
             f"ポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
     else:
@@ -117,10 +117,12 @@ def listen_fishing(message):
     user_profile = client.users_profile_get(
         user=message.body['user'])['profile']
 
+    # ニックネームがあればそっち表示
     if user_profile["display_name"] != "":
         angler_name = user_profile['display_name']
     else:
         angler_name = user_profile['real_name']
+
 
     client.chat_postMessage(
         channel=message.body['channel'],
@@ -188,6 +190,13 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     # 釣果を検索
     # 検索条件
     l_catch_list = selectCatch(fishInfo, user_id)
+
+    # ポイント設定
+    if fishInfo.get('min_length') != None:
+        result_dict['point'] = calc_point(fishInfo.get('rarity'))
+    else:
+        result_dict['point'] = 0
+
     # UPDATE-20200914-#24#25 最大、最小、新しく釣った魚を判定するためのリスト
     update_code = []
     # 前回釣った魚のサイズ
@@ -226,10 +235,9 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         else:
             min_length = None
             min_length = None
-        updateFishCatch(fishInfo, user_id, min_length,
-                        max_length, before_count, before_point)
 
-    result_dict['point'] = calc_point(fishInfo.get('rarity'))
+        update_fish_catch(fishInfo, user_id, min_length,
+                        max_length, before_count, result_dict['point'])
 
     return result_dict, update_code, before_length
 
@@ -299,12 +307,11 @@ def insertFishCatch(fishInfo, userId, length):
         print(e)
 
 
-def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, before_point):
+def update_fish_catch(fishInfo, userId, min_length, max_length, before_count, point):
     try:
         sql = "UPDATE fish_catch SET min_length=%s, max_length=%s, count=%s, point=%s where fish_id=%s and angler_id=%s"
         count = before_count + 1
         rarity = fishInfo.get('rarity')
-        point = calc_point(rarity)
 
         with get_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
@@ -334,7 +341,7 @@ def upsert_ranking(user_id, point):
         print(e)
 
 
-def lengthText(result_dict, update_code, before_length):
+def get_length_text(result_dict, update_code, before_length):
     # 金冠　最大、最小　初めて釣ったか判定する
     length_text = str(result_dict['length']) + " cm"
     # UPDATE-20200914-#23 最大または最小を釣った場合👑をつける
