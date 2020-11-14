@@ -25,8 +25,11 @@ def main():
 
 
 if __name__ == "__main__":
-    print('start slackbot')
-    main()
+    # print('start slackbot')
+    # main()
+    job = Thread(target=main)
+    job.start()
+    print("RTMbot job start")
 
     # APSchedulerの起動
     job = Thread(target=sched.start)

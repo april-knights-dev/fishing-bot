@@ -123,38 +123,41 @@ def listen_fishing(message):
     else:
         angler_name = user_profile['real_name']
 
-
-    client.chat_postMessage(
-        channel=message.body['channel'],
-        username='釣堀',
-        blocks=[
-            {
-                "type": "section",
-                "text": {
-                        "type": "mrkdwn",
-                        "text": angler_name + "が釣ったのは…"
-                }
-            },
-            {
-                "type": "divider"
-            },
-            {
-                "type": "section",
-                "text": {
-                        "type": "mrkdwn",
-                        "text": section_text
+    try:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                            "type": "mrkdwn",
+                            "text": angler_name + "が釣ったのは…"
+                    }
                 },
-                "accessory": {
-                    "type": "image",
-                    "image_url": f"{result_dict['fish_icon']}",
-                    "alt_text": "Twitter, Inc."
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                            "type": "mrkdwn",
+                            "text": section_text
+                    },
+                    "accessory": {
+                        "type": "image",
+                        "image_url": f"{result_dict['fish_icon']}",
+                        "alt_text": "Twitter, Inc."
+                    }
+                },
+                {
+                    "type": "divider"
                 }
-            },
-            {
-                "type": "divider"
-            }
-        ]
-    )
+            ]
+        )
+    except client.error as e:
+        print(e)
+        client.chat_postMessage("な・・なんてやろうだ・・！オラのスピードを超えてやがる・・。\nへへ・・でもよ・・こんなやばい時だってのに、わくわくしてきやがった・・・！")
 
 
 def fishing(ret_fishid, l_fishinfo, user_id):
@@ -237,7 +240,7 @@ def fishing(ret_fishid, l_fishinfo, user_id):
             min_length = None
 
         update_fish_catch(fishInfo, user_id, min_length,
-                        max_length, before_count, result_dict['point'])
+                          max_length, before_count, result_dict['point'])
 
     return result_dict, update_code, before_length
 

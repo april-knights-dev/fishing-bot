@@ -148,7 +148,7 @@ def listen_ranking(message):
     sql = "select * from angler_ranking ORDER BY total_point DESC LIMIT 10;"
     ranking_dict = get_db_dict(sql)
 
-    send_text = get_send_text("全期間ランキング", ranking_dict, user_profile_dict, total_point)
+    send_text = get_send_text("全期間ランキング", ranking_dict, user_profile_dict, "total_point", total_point)
 
     try:
         client.chat_postMessage(
@@ -171,7 +171,7 @@ def listen_ranking(message):
     ranking_dict = get_db_dict(sql)
 
     send_text = get_send_text(
-        "週間(月~金)ランキング", ranking_dict, user_profile_dict, total_point[0]["weekly_point"])
+        "週間(月~金)ランキング", ranking_dict, user_profile_dict, "weekly_point", total_point[0]["weekly_point"])
 
     try:
         client.chat_postMessage(
@@ -194,7 +194,7 @@ def listen_ranking(message):
     ranking_dict = get_db_dict(sql)
 
     send_text = get_send_text(
-        "月間ランキング", ranking_dict, user_profile_dict, total_point[0]["monthly_point"])
+        "月間ランキング", ranking_dict, user_profile_dict, "monthly_point", total_point[0]["monthly_point"])
 
     try:
         client.chat_postMessage(
@@ -411,12 +411,12 @@ def fish_help(message):
         message.send(send_text)
 
 
-def get_send_text(title, ranking_dict, user_profile_dict, total_point):
+def get_send_text(title, ranking_dict, user_profile_dict, point_col_name,total_point):
     user_id_list = []
     total_point_list = []
     for row in ranking_dict:
         user_id_list.append(row.get('angler_id'))
-        total_point_list.append(row.get('total_point'))
+        total_point_list.append(row.get(point_col_name))
 
     user_name_list = []
     for user_id in user_id_list:
