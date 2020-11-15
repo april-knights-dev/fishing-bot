@@ -103,10 +103,7 @@ def fish_catch(message):
             thread_ts=ts,
             reply_broadcast=False
         )
-    except AttributeError:
-        send_text = "まだ登録されてませんよ？"
-        message.send(send_text)
-    except SlackApiError as e:
+    except Exception:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
 
@@ -125,22 +122,22 @@ def listen_ranking(message):
     for user in users:
         user_profile_dict[user["id"]] = user["profile"]
 
-    # 全期間自分の釣果
-    sql = "select * from fish_catch where angler_id ='" + user_id + "';"
-    fish_catch_dict = get_db_dict(sql)
-
-    # 個人のトータルポイントを算出
-    sql = "select total_point from angler_ranking where angler_id ='" + user_id + "';"
-    total_point = get_db_dict(sql)
-
-    # 全期間ランキング取得
-    sql = "select * from angler_ranking ORDER BY total_point DESC LIMIT 10;"
-    ranking_dict = get_db_dict(sql)
-
-    send_text = get_send_text("全期間ランキング", ranking_dict, user_profile_dict,
-                              "total_point", total_point[0]["total_point"])
-
     try:
+        # 全期間自分の釣果
+        sql = "select * from fish_catch where angler_id ='" + user_id + "';"
+        fish_catch_dict = get_db_dict(sql)
+
+        # 個人のトータルポイントを算出
+        sql = "select total_point from angler_ranking where angler_id ='" + user_id + "';"
+        total_point = get_db_dict(sql)
+
+        # 全期間ランキング取得
+        sql = "select * from angler_ranking ORDER BY total_point DESC LIMIT 10;"
+        ranking_dict = get_db_dict(sql)
+
+        send_text = get_send_text("全期間ランキング", ranking_dict, user_profile_dict,
+                                  "total_point", total_point[0]["total_point"])
+
         client.chat_postMessage(
             channel=message.body['channel'],
             username='釣堀',
@@ -148,22 +145,18 @@ def listen_ranking(message):
             thread_ts=ts,
             reply_broadcast=False
         )
-    except AttributeError:
-        send_text = "まだ登録されてませんよ？"
-        message.send(send_text)
 
-    # personal weekly point
-    sql = "select weekly_point from angler_ranking where angler_id ='" + user_id + "';"
-    total_point = get_db_dict(sql)
+        # personal weekly point
+        sql = "select weekly_point from angler_ranking where angler_id ='" + user_id + "';"
+        total_point = get_db_dict(sql)
 
-    # get weekly ranking
-    sql = "select * from angler_ranking ORDER BY weekly_point DESC LIMIT 10;"
-    ranking_dict = get_db_dict(sql)
+        # get weekly ranking
+        sql = "select * from angler_ranking ORDER BY weekly_point DESC LIMIT 10;"
+        ranking_dict = get_db_dict(sql)
 
-    send_text = get_send_text(
-        "週間(月~金)ランキング", ranking_dict, user_profile_dict, "weekly_point", total_point[0]["weekly_point"])
+        send_text = get_send_text(
+            "週間(月~金)ランキング", ranking_dict, user_profile_dict, "weekly_point", total_point[0]["weekly_point"])
 
-    try:
         client.chat_postMessage(
             channel=message.body['channel'],
             username='釣堀',
@@ -171,22 +164,18 @@ def listen_ranking(message):
             thread_ts=ts,
             reply_broadcast=False
         )
-    except AttributeError:
-        send_text = "まだ登録されてませんよ？"
-        message.send(send_text)
 
-    # personal monthly point
-    sql = "select monthly_point from angler_ranking where angler_id ='" + user_id + "';"
-    total_point = get_db_dict(sql)
+        # personal monthly point
+        sql = "select monthly_point from angler_ranking where angler_id ='" + user_id + "';"
+        total_point = get_db_dict(sql)
 
-    # get monthly ranking
-    sql = "select * from angler_ranking ORDER BY monthly_point DESC LIMIT 10;"
-    ranking_dict = get_db_dict(sql)
+        # get monthly ranking
+        sql = "select * from angler_ranking ORDER BY monthly_point DESC LIMIT 10;"
+        ranking_dict = get_db_dict(sql)
 
-    send_text = get_send_text(
-        "月間ランキング", ranking_dict, user_profile_dict, "monthly_point", total_point[0]["monthly_point"])
+        send_text = get_send_text(
+            "月間ランキング", ranking_dict, user_profile_dict, "monthly_point", total_point[0]["monthly_point"])
 
-    try:
         client.chat_postMessage(
             channel=message.body['channel'],
             username='釣堀',
@@ -194,7 +183,7 @@ def listen_ranking(message):
             thread_ts=ts,
             reply_broadcast=False
         )
-    except AttributeError:
+    except Exception:
         send_text = "まだ登録されてませんよ？"
         message.send(send_text)
 
@@ -485,7 +474,7 @@ def get_send_text(title, ranking_dict, user_profile_dict, point_col_name, total_
             "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "自分のトータルポイント:" + str(total_point)
+                        "text": "自分のトータルポイント: " + str(total_point)
                     }
             ]
         },
