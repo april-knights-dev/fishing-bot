@@ -39,18 +39,6 @@ def get_ranking_(sql):
     return dictList
 
 
-def get_personal_totalpoint(fish_catch_dict):
-    total_point = 0
-    for catch_row in fish_catch_dict:
-        fish_point = catch_row.get('point')
-        fish_count = catch_row.get('count')
-
-    if catch_row.get('point') != None and catch_row.get('count') != None:
-        total_point += fish_count * fish_point
-
-    return total_point
-
-
 @listen_to('^釣果$')
 def fish_catch(message):
     # お魚リストとってくるよ
@@ -142,13 +130,15 @@ def listen_ranking(message):
     fish_catch_dict = get_db_dict(sql)
 
     # 個人のトータルポイントを算出
-    total_point = get_personal_totalpoint(fish_catch_dict)
+    sql = "select total_point from angler_ranking where angler_id ='" + user_id + "';"
+    total_point = get_db_dict(sql)
 
     # 全期間ランキング取得
     sql = "select * from angler_ranking ORDER BY total_point DESC LIMIT 10;"
     ranking_dict = get_db_dict(sql)
 
-    send_text = get_send_text("全期間ランキング", ranking_dict, user_profile_dict, "total_point", total_point)
+    send_text = get_send_text("全期間ランキング", ranking_dict, user_profile_dict,
+                              "total_point", total_point[0]["total_point"])
 
     try:
         client.chat_postMessage(
@@ -411,7 +401,7 @@ def fish_help(message):
         message.send(send_text)
 
 
-def get_send_text(title, ranking_dict, user_profile_dict, point_col_name,total_point):
+def get_send_text(title, ranking_dict, user_profile_dict, point_col_name, total_point):
     user_id_list = []
     total_point_list = []
     for row in ranking_dict:
