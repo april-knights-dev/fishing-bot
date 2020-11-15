@@ -6,6 +6,7 @@ from slackbot.bot import respond_to     # @botname: で反応するデコーダ
 from slackbot.bot import listen_to      # チャネル内発言で反応するデコーダ
 from slackbot.bot import default_reply  # 該当する応答がない場合に反応するデコーダ
 from psycopg2.extras import DictCursor  # 辞書形式で取得するやつ
+import traceback
 import os
 import requests
 import urllib.request as req
@@ -155,9 +156,8 @@ def listen_fishing(message):
                 }
             ]
         )
-    except client.error as e:
-        print(e)
-        client.chat_postMessage("な・・なんてやろうだ・・！オラのスピードを超えてやがる・・。\nへへ・・でもよ・・こんなやばい時だってのに、わくわくしてきやがった・・・！")
+    except SlackApiError as e:
+        traceback.print_exc()
 
 
 def fishing(ret_fishid, l_fishinfo, user_id):
