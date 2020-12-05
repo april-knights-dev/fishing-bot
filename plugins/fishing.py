@@ -2,9 +2,6 @@
 
 from slack import WebClient
 from slack.errors import SlackApiError
-from slackbot.bot import respond_to     # @botname: で反応するデコーダ
-from slackbot.bot import listen_to      # チャネル内発言で反応するデコーダ
-from slackbot.bot import default_reply  # 該当する応答がない場合に反応するデコーダ
 from psycopg2.extras import DictCursor  # 辞書形式で取得するやつ
 import traceback
 import os
@@ -35,7 +32,6 @@ client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 #                               文字列中に':'はいらない
 
 
-@listen_to('^釣り$')
 def listen_fishing(message):
 
     l_fishinfo = selectFishInfoAll()
