@@ -2,10 +2,8 @@
 
 from slack import WebClient
 from slack.errors import SlackApiError
-from slackbot.bot import respond_to     # @botname: で反応するデコーダ
-from slackbot.bot import listen_to      # チャネル内発言で反応するデコーダ
-from slackbot.bot import default_reply  # 該当する応答がない場合に反応するデコーダ
 from psycopg2.extras import DictCursor  # 辞書形式で取得するやつ
+import traceback
 import os
 import requests
 import urllib.request as req
@@ -34,15 +32,16 @@ client = WebClient(token=os.getenv('SLACK_CLIENT_TOKEN'))
 #                               文字列中に':'はいらない
 
 
-@listen_to('^釣り$')
 def listen_fishing(message):
 
     l_fishinfo = selectFishInfoAll()
     l_weights = selectWeigths()
+    l_rarity = select_rarity()
     l = []
     w = []
     # 朝と夜で２つ作る必要あり
-    bonus_time_rate = os.getenv('BONUS_TIME_RATE')
+    bonus_time_increase_rate = os.getenv('BONUS_TIME_INCREASE_RATE')
+    bonus_time_reduced_rate = os.getenv('BONUS_TIME_REDUCED_RATE')
     bonus_start_HHmmss_1 = os.getenv('BONUS_START_TIME_1')
     bonus_end_HHmmss_1 = os.getenv('BONUS_END_TIME_1')
     bonus_start_HHmmss_2 = os.getenv('BONUS_START_TIME_2')
@@ -59,12 +58,12 @@ def listen_fishing(message):
 
     if bonus_start_HHmmss_1 <= message_HHmmss <= bonus_end_HHmmss_1:
         bonus_message = bonus_start_HHmmss_1 + '～' + \
-            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            bonus_end_HHmmss_1 + 'までレア度４以上が' + bonus_time_increase_rate + 'べえだ！' + \
             'リモート勤務のやつはきんてぇ連絡出したか？'
         isBonusTime = True
     elif bonus_start_HHmmss_2 <= message_HHmmss <= bonus_end_HHmmss_2:
         bonus_message = bonus_start_HHmmss_2 + '～' + \
-            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_rate + 'べえだ！' + \
+            bonus_end_HHmmss_2 + 'までレア度４以上が' + bonus_time_increase_rate + 'べえだ！' + \
             '日報わすれっなよ！'
         isBonusTime = True
 
@@ -74,19 +73,23 @@ def listen_fishing(message):
             username='釣堀',
             text=bonus_message)
 
-    # レア度リスト取得
-    for row in l_fishinfo:
-        rarity = row.get('rarity')
-        # レア度を％に変換する
-        for row_w in l_weights:
-            if row_w.get('rarity') == rarity:
-                if isBonusTime and 4 <= rarity:
-                    w.append(row_w.get('weights')*int(bonus_time_rate))
-                else:
-                    w.append(row_w.get('weights'))
+    # レア度を％に変換する
+    for row_w in l_weights:
+        if isBonusTime and 4 <= row_w.get('rarity'):
+            w.append(row_w.get('weights')*int(bonus_time_increase_rate))
+        elif isBonusTime and 1 == row_w.get('rarity'):
+            w.append(row_w.get('weights')/int(bonus_time_reduced_rate))
+        else:
+            w.append(row_w.get('weights'))
 
-    ret = random.choices(l_fishid, weights=w)
-    ret_fishid = ret[0]
+    # レア度をどれにするか重み付けありでチョイス
+    ret = random.choices(l_rarity, weights=w)
+    # チョイスされたレア度のfish_idを抽出
+    target_fishlist = select_fishinfo_filtered_rarity(ret)
+    # レア度が同じfish_idからランダムで１つ選択
+    ret_fishid = target_fishlist[random.randrange(
+        len(target_fishlist))].get('fish_id')
+    # 釣果登録更新
     fishing_return_list = []
     fishing_return_list = fishing(ret_fishid, l_fishinfo,
                                   user_id=message.body['user'])
@@ -95,53 +98,62 @@ def listen_fishing(message):
     update_code = fishing_return_list[1]
     before_length = fishing_return_list[2]
 
+    # ランキングにポイント加算
+    upsert_ranking(user_id=message.body['user'], point=result_dict['point'])
+
     section_text = ""
     if "length" in result_dict:
-        length_text = lengthText(result_dict, update_code, before_length)
-
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
+        length_text = get_length_text(result_dict, update_code, before_length)
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n" \
+            f"ポイント：{result_dict['point']} pt\n体長：{length_text}\nコメント：{result_dict['comment']}"
     else:
-        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\nポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
+        section_text = f"*{result_dict['fish_name']}*\nレア度：{result_dict['star']}\n" \
+            f"ポイント：{result_dict['point']} pt\nコメント：{result_dict['comment']}"
 
     angler_name = ""
     user_profile = client.users_profile_get(
         user=message.body['user'])['profile']
+
+    # ニックネームがあればそっち表示
     if user_profile["display_name"] != "":
         angler_name = user_profile['display_name']
     else:
         angler_name = user_profile['real_name']
 
-    client.chat_postMessage(
-        channel=message.body['channel'],
-        username='釣堀',
-        blocks=[
-            {
-                "type": "section",
-                "text": {
-                        "type": "mrkdwn",
-                        "text": angler_name + "が釣ったのは…"
-                }
-            },
-            {
-                "type": "divider"
-            },
-            {
-                "type": "section",
-                "text": {
-                        "type": "mrkdwn",
-                        "text": section_text
+    try:
+        client.chat_postMessage(
+            channel=message.body['channel'],
+            username='釣堀',
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                            "type": "mrkdwn",
+                            "text": angler_name + "が釣ったのは…"
+                    }
                 },
-                "accessory": {
-                    "type": "image",
-                    "image_url": f"{result_dict['fish_icon']}",
-                    "alt_text": "Twitter, Inc."
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                            "type": "mrkdwn",
+                            "text": section_text
+                    },
+                    "accessory": {
+                        "type": "image",
+                        "image_url": f"{result_dict['fish_icon']}",
+                        "alt_text": "Twitter, Inc."
+                    }
+                },
+                {
+                    "type": "divider"
                 }
-            },
-            {
-                "type": "divider"
-            }
-        ]
-    )
+            ]
+        )
+    except SlackApiError as e:
+        traceback.print_exc()
 
 
 def fishing(ret_fishid, l_fishinfo, user_id):
@@ -177,6 +189,13 @@ def fishing(ret_fishid, l_fishinfo, user_id):
     # 釣果を検索
     # 検索条件
     l_catch_list = selectCatch(fishInfo, user_id)
+
+    # ポイント設定
+    if fishInfo.get('min_length') != None:
+        result_dict['point'] = calc_point(fishInfo.get('rarity'))
+    else:
+        result_dict['point'] = 0
+
     # UPDATE-20200914-#24#25 最大、最小、新しく釣った魚を判定するためのリスト
     update_code = []
     # 前回釣った魚のサイズ
@@ -215,10 +234,9 @@ def fishing(ret_fishid, l_fishinfo, user_id):
         else:
             min_length = None
             min_length = None
-        updateFishCatch(fishInfo, user_id, min_length,
-                        max_length, before_count, before_point)
 
-    result_dict['point'] = calc_point(fishInfo.get('rarity'))
+        update_fish_catch(fishInfo, user_id, min_length,
+                          max_length, before_count, result_dict['point'])
 
     return result_dict, update_code, before_length
 
@@ -236,6 +254,26 @@ def selectWeigths():
     with get_connection() as conn:
         with conn.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("select * from weights")
+            dictList = cur.fetchall()
+
+    return dictList
+
+
+def select_rarity():
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("select rarity from weights")
+            dictList = cur.fetchall()
+
+    return dictList
+
+
+def select_fishinfo_filtered_rarity(rarity):
+
+    sql = "select * from fish_info where rarity =%s"
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute(sql, rarity[0])
             dictList = cur.fetchall()
 
     return dictList
@@ -268,12 +306,11 @@ def insertFishCatch(fishInfo, userId, length):
         print(e)
 
 
-def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, before_point):
+def update_fish_catch(fishInfo, userId, min_length, max_length, before_count, point):
     try:
         sql = "UPDATE fish_catch SET min_length=%s, max_length=%s, count=%s, point=%s where fish_id=%s and angler_id=%s"
         count = before_count + 1
         rarity = fishInfo.get('rarity')
-        point = calc_point(rarity)
 
         with get_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
@@ -284,10 +321,27 @@ def updateFishCatch(fishInfo, userId, min_length, max_length, before_count, befo
     except psycopg2.Error as e:
         print(e)
 
-# 金冠　最大、最小　初めて釣ったか判定する
+
+def upsert_ranking(user_id, point):
+    try:
+        created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sql = "INSERT INTO angler_ranking(angler_id, total_point, weekly_point, monthly_point, created_at)"\
+            f"VALUES('{user_id}',{point},{point},{point},'{created_at}')"\
+            "ON CONFLICT (angler_id) DO UPDATE "\
+            f"SET total_point = angler_ranking.total_point + {point}"\
+            f", weekly_point = angler_ranking.weekly_point + {point}"\
+            f", monthly_point = angler_ranking.monthly_point + {point}"
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cur:
+                cur.execute(sql, [point, user_id])
+                conn.commit()
+    except psycopg2.Error as e:
+        print(e)
 
 
-def lengthText(result_dict, update_code, before_length):
+def get_length_text(result_dict, update_code, before_length):
+    # 金冠　最大、最小　初めて釣ったか判定する
     length_text = str(result_dict['length']) + " cm"
     # UPDATE-20200914-#23 最大または最小を釣った場合👑をつける
     if result_dict['length'] != 0:
