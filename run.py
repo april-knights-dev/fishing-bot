@@ -29,8 +29,6 @@ def events_adapter(event_data):
     message = event_data["event"]
     channel = message["channel"]
 
-    print(message);
-
     if message.get("subtype") is None and re.match(r"^釣り$", message.get("text")):
         plugins.fishing.listen_fishing(message)
 
