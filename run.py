@@ -29,6 +29,8 @@ def events_adapter(event_data):
     message = event_data["event"]
     channel = message["channel"]
 
+    print(message);
+
     if message.get("subtype") is None and re.match(r"^釣り$", message.get("text")):
         plugins.fishing.listen_fishing(message)
 
@@ -60,16 +62,13 @@ def weekly_job():
 #     # bot.run()
 @app.route('/')
 def main():
-    return "Hello World"
-
+    # flaskの起動
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 if __name__ == "__main__":
 
-
     # APSchedulerの起動
-    job = Thread(target=sched.start)
+    job = Thread(target=main)
     job.start()
-    print("APScheduler job start")
+    print("Flask start")
 
-    # flaskの起動
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
