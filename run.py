@@ -55,18 +55,18 @@ def weekly_job():
     init_weekly_point()
 
 
-# def main():
-#     # bot = Bot()
-#     # bot.run()
-@app.route('/')
 def main():
     # flaskの起動
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
-if __name__ == "__main__":
 
-    # APSchedulerの起動
+if __name__ == "__main__":
+    # Flaskの起動
     job = Thread(target=main)
     job.start()
-    print("Flask start")
+    print("Flask job start")
 
+    # APSchedulerの起動
+    job = Thread(target=sched.start)
+    job.start()
+    print("APScheduler job start")
