@@ -42,8 +42,8 @@ def fish_catch(message):
     sql = "select * from fish_info ORDER BY rarity DESC;"
     d = get_db_dict(sql)
     # お魚一覧とってくるよ
-    user_id = message.body['user']
-    ts = message.body['ts']
+    user_id = message['user']
+    ts = message['ts']
     sql = "select * from fish_catch where angler_id ='" + \
         user_id + "' ORDER BY LENGTH(fish_id) ,fish_id"
 
@@ -94,7 +94,7 @@ def fish_catch(message):
 
     try:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -106,8 +106,8 @@ def fish_catch(message):
 
 def listen_ranking(message):
     # お魚一覧とってくるよ
-    user_id = message.body['user']
-    ts = message.body['ts']
+    user_id = message['user']
+    ts = message['ts']
 
     # 全メンバーのプロフィール取得
     response = client.users_list()
@@ -134,7 +134,7 @@ def listen_ranking(message):
                                   "total_point", total_point[0]["total_point"])
 
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -153,7 +153,7 @@ def listen_ranking(message):
             "週間(月~日)ランキング", ranking_dict, user_profile_dict, "weekly_point", total_point[0]["weekly_point"])
 
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -172,7 +172,7 @@ def listen_ranking(message):
             "月間ランキング", ranking_dict, user_profile_dict, "monthly_point", total_point[0]["monthly_point"])
 
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -183,7 +183,7 @@ def listen_ranking(message):
 
 
 def fish_help(message):
-    ts = message.body['ts']
+    ts = message['ts']
     send_text = [
         {
             "type": "section",
@@ -270,7 +270,7 @@ def fish_help(message):
 
     try:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -282,7 +282,7 @@ def fish_help(message):
 
 
 def fish_help_cv_nozawa(message):
-    ts = message.body['ts']
+    ts = message['ts']
     send_text = [
         {
             "type": "section",
@@ -369,7 +369,7 @@ def fish_help_cv_nozawa(message):
 
     try:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,

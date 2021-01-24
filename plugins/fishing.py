@@ -46,7 +46,7 @@ def listen_fishing(message):
     bonus_end_HHmmss_1 = os.getenv('BONUS_END_TIME_1')
     bonus_start_HHmmss_2 = os.getenv('BONUS_START_TIME_2')
     bonus_end_HHmmss_2 = os.getenv('BONUS_END_TIME_2')
-    ts = message.body['ts']
+    ts = message['ts']
     message_HHmmss = datetime.datetime.fromtimestamp(
         math.floor(float(ts))).strftime('%H:%M')
     isBonusTime = False
@@ -69,7 +69,7 @@ def listen_fishing(message):
 
     if isBonusTime:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             text=bonus_message)
 
@@ -92,14 +92,14 @@ def listen_fishing(message):
     # 釣果登録更新
     fishing_return_list = []
     fishing_return_list = fishing(ret_fishid, l_fishinfo,
-                                  user_id=message.body['user'])
+                                  user_id=message['user'])
 
     result_dict = fishing_return_list[0]
     update_code = fishing_return_list[1]
     before_length = fishing_return_list[2]
 
     # ランキングにポイント加算
-    upsert_ranking(user_id=message.body['user'], point=result_dict['point'])
+    upsert_ranking(user_id=message['user'], point=result_dict['point'])
 
     section_text = ""
     if "length" in result_dict:
@@ -112,7 +112,7 @@ def listen_fishing(message):
 
     angler_name = ""
     user_profile = client.users_profile_get(
-        user=message.body['user'])['profile']
+        user=message['user'])['profile']
 
     # ニックネームがあればそっち表示
     if user_profile["display_name"] != "":
@@ -122,7 +122,7 @@ def listen_fishing(message):
 
     try:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=[
                 {
