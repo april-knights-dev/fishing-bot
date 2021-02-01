@@ -2,15 +2,13 @@
 from slack import WebClient
 
 from slack.errors import SlackApiError
-from slackbot.bot import respond_to     # @botname: で反応するデコーダ
-from slackbot.bot import listen_to      # チャネル内発言で反応するデコーダ
-from slackbot.bot import default_reply  # 該当する応答がない場合に反応するデコーダ
 
 from psycopg2.extras import DictCursor
 import os
 import requests
 import urllib.request as req
 import json
+import traceback
 import sys
 import random
 import psycopg2
@@ -39,14 +37,13 @@ def get_ranking_(sql):
     return dictList
 
 
-@listen_to('^釣果$')
 def fish_catch(message):
     # お魚リストとってくるよ
     sql = "select * from fish_info ORDER BY rarity DESC;"
     d = get_db_dict(sql)
     # お魚一覧とってくるよ
-    user_id = message.body['user']
-    ts = message.body['ts']
+    user_id = message['user']
+    ts = message['ts']
     sql = "select * from fish_catch where angler_id ='" + \
         user_id + "' ORDER BY LENGTH(fish_id) ,fish_id"
 
@@ -97,22 +94,20 @@ def fish_catch(message):
 
     try:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
             reply_broadcast=False
         )
     except Exception:
-        send_text = "まだ登録されてませんよ？"
-        message.send(send_text)
+        traceback.print_exc()
 
 
-@listen_to('^ランキング$')
 def listen_ranking(message):
     # お魚一覧とってくるよ
-    user_id = message.body['user']
-    ts = message.body['ts']
+    user_id = message['user']
+    ts = message['ts']
 
     # 全メンバーのプロフィール取得
     response = client.users_list()
@@ -139,7 +134,7 @@ def listen_ranking(message):
                                   "total_point", total_point[0]["total_point"])
 
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -155,10 +150,10 @@ def listen_ranking(message):
         ranking_dict = get_db_dict(sql)
 
         send_text = get_send_text(
-            "週間(月~金)ランキング", ranking_dict, user_profile_dict, "weekly_point", total_point[0]["weekly_point"])
+            "週間(月~日)ランキング", ranking_dict, user_profile_dict, "weekly_point", total_point[0]["weekly_point"])
 
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -177,20 +172,18 @@ def listen_ranking(message):
             "月間ランキング", ranking_dict, user_profile_dict, "monthly_point", total_point[0]["monthly_point"])
 
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
             reply_broadcast=False
         )
     except Exception:
-        send_text = "まだ登録されてませんよ？"
-        message.send(send_text)
+        traceback.print_exc()
 
 
-@listen_to('^ヘルプ$')
 def fish_help(message):
-    ts = message.body['ts']
+    ts = message['ts']
     send_text = [
         {
             "type": "section",
@@ -277,7 +270,7 @@ def fish_help(message):
 
     try:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -285,13 +278,11 @@ def fish_help(message):
         )
 
     except AttributeError:
-        send_text = "まだ登録されてませんよ？"
-        message.send(send_text)
+        traceback.print_exc()
 
 
-@listen_to('^野沢ヘルプ$')
-def fish_help(message):
-    ts = message.body['ts']
+def fish_help_cv_nozawa(message):
+    ts = message['ts']
     send_text = [
         {
             "type": "section",
@@ -378,7 +369,7 @@ def fish_help(message):
 
     try:
         client.chat_postMessage(
-            channel=message.body['channel'],
+            channel=message['channel'],
             username='釣堀',
             blocks=send_text,
             thread_ts=ts,
@@ -386,8 +377,7 @@ def fish_help(message):
         )
 
     except AttributeError:
-        send_text = "まだ登録されてませんよ？"
-        message.send(send_text)
+        traceback.print_exc()
 
 
 def get_send_text(title, ranking_dict, user_profile_dict, point_col_name, total_point):
